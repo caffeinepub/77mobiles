@@ -14,6 +14,7 @@ import {
   FlaskConical,
   MapPin,
   MessageCircle,
+  Phone,
   Send,
   User,
   X,
@@ -330,6 +331,20 @@ function DemoListingDetail({ listingId }: { listingId: string }) {
           </Button>
         </form>
       </motion.div>
+
+      {/* Call Seller */}
+      <div className="mt-4">
+        <a href="tel:+919876543210" data-ocid="listing.secondary_button">
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full gap-2 text-base rounded-2xl border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+          >
+            <Phone className="h-5 w-5" />
+            Call Seller · +91 98765 43210
+          </Button>
+        </a>
+      </div>
     </div>
   );
 }
@@ -393,6 +408,16 @@ function RealListingDetail({ listingId }: { listingId: string }) {
     } catch {
       toast.error("Failed to send message");
     }
+  };
+
+  const handleCallSeller = () => {
+    const phone = sellerProfile?.phone;
+    if (!phone || phone.trim() === "") {
+      toast.info("Phone number not available");
+      return;
+    }
+    const normalized = phone.replace(/\D/g, "");
+    window.location.href = `tel:+${normalized.startsWith("91") ? normalized : `91${normalized}`}`;
   };
 
   if (isLoading) {
@@ -590,22 +615,34 @@ function RealListingDetail({ listingId }: { listingId: string }) {
 
           {/* CTA */}
           {!isMySelling && (
-            <Button
-              onClick={() => {
-                if (!isAuthenticated) {
-                  toast.error("Please login to message the seller");
-                  login();
-                  return;
-                }
-                setChatOpen(true);
-              }}
-              className="w-full gap-2 text-base rounded-2xl"
-              size="lg"
-              data-ocid="listing.primary_button"
-            >
-              <MessageCircle className="h-5 w-5" />
-              Message Seller
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    toast.error("Please login to message the seller");
+                    login();
+                    return;
+                  }
+                  setChatOpen(true);
+                }}
+                className="flex-1 gap-2 text-base rounded-2xl"
+                size="lg"
+                data-ocid="listing.primary_button"
+              >
+                <MessageCircle className="h-5 w-5" />
+                Message Seller
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleCallSeller}
+                className="flex-1 gap-2 text-base rounded-2xl border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+                size="lg"
+                data-ocid="listing.secondary_button"
+              >
+                <Phone className="h-5 w-5" />
+                Call Seller
+              </Button>
+            </div>
           )}
           {isMySelling && (
             <div className="text-center p-3 bg-muted rounded-2xl">
