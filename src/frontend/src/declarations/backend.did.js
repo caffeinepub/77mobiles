@@ -50,6 +50,27 @@ export const Listing = IDL.Record({
   'condition' : ListingCondition,
   'images' : IDL.Vec(ExternalBlob),
 });
+export const DealerKycStatus = IDL.Variant({
+  'pending' : IDL.Null,
+  'approved' : IDL.Null,
+  'rejected' : IDL.Null,
+});
+export const DealerRegistrationType = IDL.Variant({
+  'seller' : IDL.Null,
+  'buyer' : IDL.Null,
+});
+export const DealerRegistration = IDL.Record({
+  'id' : IDL.Text,
+  'gst' : IDL.Text,
+  'pan' : IDL.Text,
+  'registrantPrincipal' : IDL.Principal,
+  'businessName' : IDL.Text,
+  'kycStatus' : DealerKycStatus,
+  'timestamp' : Time,
+  'aadhaarHash' : IDL.Text,
+  'mobile' : IDL.Text,
+  'registrationType' : DealerRegistrationType,
+});
 export const Message = IDL.Record({
   'id' : IDL.Text,
   'content' : IDL.Text,
@@ -129,6 +150,11 @@ export const idlService = IDL.Service({
       [IDL.Vec(Listing)],
       ['query'],
     ),
+  'getAllDealerRegistrations' : IDL.Func(
+      [],
+      [IDL.Vec(DealerRegistration)],
+      ['query'],
+    ),
   'getAllListings' : IDL.Func([], [IDL.Vec(Listing)], ['query']),
   'getAllListingsByPrice' : IDL.Func([], [IDL.Vec(Listing)], ['query']),
   'getAllMessages' : IDL.Func([], [IDL.Vec(Message)], ['query']),
@@ -144,6 +170,11 @@ export const idlService = IDL.Service({
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getListingById' : IDL.Func([IDL.Text], [IDL.Opt(Listing)], ['query']),
   'getMessagesForListing' : IDL.Func([IDL.Text], [IDL.Vec(Message)], ['query']),
+  'getMyDealerRegistration' : IDL.Func(
+      [],
+      [IDL.Opt(DealerRegistration)],
+      ['query'],
+    ),
   'getPickupBooking' : IDL.Func(
       [IDL.Text],
       [IDL.Opt(PickupBooking)],
@@ -173,8 +204,21 @@ export const idlService = IDL.Service({
   'postMessage' : IDL.Func([IDL.Text, IDL.Principal, IDL.Text], [IDL.Text], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'searchListings' : IDL.Func([IDL.Text], [IDL.Vec(Listing)], ['query']),
+  'submitDealerRegistration' : IDL.Func(
+      [
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        DealerRegistrationType,
+      ],
+      [IDL.Text],
+      [],
+    ),
   'submitPickupBooking' : IDL.Func([PickupBooking], [IDL.Text], []),
   'updateBookingStatus' : IDL.Func([IDL.Text, PickupBookingStatus], [], []),
+  'updateDealerKycStatus' : IDL.Func([IDL.Text, DealerKycStatus], [], []),
 });
 
 export const idlInitArgs = [];
@@ -221,6 +265,27 @@ export const idlFactory = ({ IDL }) => {
     'location' : IDL.Text,
     'condition' : ListingCondition,
     'images' : IDL.Vec(ExternalBlob),
+  });
+  const DealerKycStatus = IDL.Variant({
+    'pending' : IDL.Null,
+    'approved' : IDL.Null,
+    'rejected' : IDL.Null,
+  });
+  const DealerRegistrationType = IDL.Variant({
+    'seller' : IDL.Null,
+    'buyer' : IDL.Null,
+  });
+  const DealerRegistration = IDL.Record({
+    'id' : IDL.Text,
+    'gst' : IDL.Text,
+    'pan' : IDL.Text,
+    'registrantPrincipal' : IDL.Principal,
+    'businessName' : IDL.Text,
+    'kycStatus' : DealerKycStatus,
+    'timestamp' : Time,
+    'aadhaarHash' : IDL.Text,
+    'mobile' : IDL.Text,
+    'registrationType' : DealerRegistrationType,
   });
   const Message = IDL.Record({
     'id' : IDL.Text,
@@ -301,6 +366,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(Listing)],
         ['query'],
       ),
+    'getAllDealerRegistrations' : IDL.Func(
+        [],
+        [IDL.Vec(DealerRegistration)],
+        ['query'],
+      ),
     'getAllListings' : IDL.Func([], [IDL.Vec(Listing)], ['query']),
     'getAllListingsByPrice' : IDL.Func([], [IDL.Vec(Listing)], ['query']),
     'getAllMessages' : IDL.Func([], [IDL.Vec(Message)], ['query']),
@@ -318,6 +388,11 @@ export const idlFactory = ({ IDL }) => {
     'getMessagesForListing' : IDL.Func(
         [IDL.Text],
         [IDL.Vec(Message)],
+        ['query'],
+      ),
+    'getMyDealerRegistration' : IDL.Func(
+        [],
+        [IDL.Opt(DealerRegistration)],
         ['query'],
       ),
     'getPickupBooking' : IDL.Func(
@@ -353,8 +428,21 @@ export const idlFactory = ({ IDL }) => {
       ),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'searchListings' : IDL.Func([IDL.Text], [IDL.Vec(Listing)], ['query']),
+    'submitDealerRegistration' : IDL.Func(
+        [
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          DealerRegistrationType,
+        ],
+        [IDL.Text],
+        [],
+      ),
     'submitPickupBooking' : IDL.Func([PickupBooking], [IDL.Text], []),
     'updateBookingStatus' : IDL.Func([IDL.Text, PickupBookingStatus], [], []),
+    'updateDealerKycStatus' : IDL.Func([IDL.Text, DealerKycStatus], [], []),
   });
 };
 

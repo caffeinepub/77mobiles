@@ -1,11 +1,35 @@
-import { ExternalBlob, ListingCategory, ListingCondition } from "@/backend";
-import type { Listing, PickupBooking, UserProfile, UserRole } from "@/backend";
+import {
+  DealerKycStatus,
+  DealerRegistrationType,
+  ExternalBlob,
+  ListingCategory,
+  ListingCondition,
+} from "@/backend";
+import type {
+  DealerRegistration,
+  Listing,
+  PickupBooking,
+  UserProfile,
+  UserRole,
+} from "@/backend";
 import type { Principal } from "@icp-sdk/core/principal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActor } from "./useActor";
 
-export { ListingCategory, ListingCondition, ExternalBlob };
-export type { Listing, PickupBooking, UserProfile, UserRole };
+export {
+  DealerKycStatus,
+  DealerRegistrationType,
+  ListingCategory,
+  ListingCondition,
+  ExternalBlob,
+};
+export type {
+  DealerRegistration,
+  Listing,
+  PickupBooking,
+  UserProfile,
+  UserRole,
+};
 
 export function useListings(category: ListingCategory | "all", search = "") {
   const { actor, isFetching } = useActor();
@@ -217,6 +241,88 @@ export function useSubmitPickupBooking() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["allPickupBookings"] });
+    },
+  });
+}
+
+export function useSubmitDealerRegistration() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      pan,
+      gst,
+      aadhaarHash,
+      mobile,
+      businessName,
+      registrationType,
+    }: {
+      pan: string;
+      gst: string;
+      aadhaarHash: string;
+      mobile: string;
+      businessName: string;
+      registrationType: DealerRegistrationType;
+    }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.submitDealerRegistration(
+        pan,
+        gst,
+        aadhaarHash,
+        mobile,
+        businessName,
+        registrationType,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["myDealerRegistration"] });
+      qc.invalidateQueries({ queryKey: ["allDealerRegistrations"] });
+    },
+  });
+}
+
+export function useGetMyDealerRegistration() {
+  const { actor, isFetching } = useActor();
+  return useQuery<DealerRegistration | null>({
+    queryKey: ["myDealerRegistration"],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getMyDealerRegistration();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useGetAllDealerRegistrations() {
+  const { actor, isFetching } = useActor();
+  return useQuery<DealerRegistration[]>({
+    queryKey: ["allDealerRegistrations"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllDealerRegistrations();
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useUpdateDealerKycStatus() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      registrationId,
+      newStatus,
+    }: {
+      registrationId: string;
+      newStatus: DealerKycStatus;
+    }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.updateDealerKycStatus(registrationId, newStatus);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allDealerRegistrations"] });
+      qc.invalidateQueries({ queryKey: ["myDealerRegistration"] });
     },
   });
 }

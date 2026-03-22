@@ -1,4 +1,5 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,14 +12,18 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronDown,
+  LayoutDashboard,
   LogOut,
   MessageSquare,
   PlusCircle,
   Search,
   Settings,
+  Store,
   User,
+  X,
 } from "lucide-react";
 import { useState } from "react";
+import { useDealerMode } from "../hooks/useDealerMode";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useGetCallerUserProfile,
@@ -32,6 +37,7 @@ export default function Navbar() {
   const qc = useQueryClient();
   const { data: profile } = useGetCallerUserProfile();
   const { data: role } = useGetCallerUserRole();
+  const { dealerMode, setDealerMode } = useDealerMode();
   const isAuthenticated = !!identity;
   const isLoggingIn = loginStatus === "logging-in";
   const isAdmin = role === "admin";
@@ -47,6 +53,15 @@ export default function Navbar() {
   const handleLogout = async () => {
     await clear();
     qc.clear();
+  };
+
+  const handleEnableDealerMode = () => {
+    setDealerMode(true);
+    navigate({ to: "/dealer" } as any);
+  };
+
+  const handleDisableDealerMode = () => {
+    setDealerMode(false);
   };
 
   const displayName =
@@ -138,20 +153,38 @@ export default function Navbar() {
                     className="gap-1.5 px-2 hover:bg-primary/10"
                     data-ocid="nav.dropdown_menu"
                   >
-                    <Avatar className="h-7 w-7">
-                      <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="hidden sm:block text-sm font-medium max-w-[80px] truncate">
-                      {displayName}
-                    </span>
+                    <div className="relative">
+                      <Avatar className="h-7 w-7">
+                        <AvatarFallback
+                          className={`text-xs ${
+                            dealerMode
+                              ? "bg-amber-500 text-black"
+                              : "bg-primary text-primary-foreground"
+                          }`}
+                        >
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      {dealerMode && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 border border-background" />
+                      )}
+                    </div>
+                    <div className="hidden sm:flex items-center gap-1">
+                      <span className="text-sm font-medium max-w-[80px] truncate">
+                        {displayName}
+                      </span>
+                      {dealerMode && (
+                        <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
+                          Dealer
+                        </Badge>
+                      )}
+                    </div>
                     <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  className="w-44 bg-popover border-border shadow-md"
+                  className="w-52 bg-popover border-border shadow-md"
                 >
                   <DropdownMenuItem asChild>
                     <Link
@@ -183,6 +216,28 @@ export default function Navbar() {
                       </Link>
                     </DropdownMenuItem>
                   )}
+
+                  {/* Dealer Mode Toggle */}
+                  {dealerMode ? (
+                    <DropdownMenuItem
+                      onClick={handleDisableDealerMode}
+                      className="flex items-center gap-2 cursor-pointer text-amber-400 hover:text-amber-300 focus:text-amber-300"
+                      data-ocid="nav.toggle"
+                    >
+                      <X className="h-4 w-4" />
+                      Exit Dealer Mode
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onClick={handleEnableDealerMode}
+                      className="flex items-center gap-2 cursor-pointer text-amber-400 hover:text-amber-300 focus:text-amber-300"
+                      data-ocid="nav.toggle"
+                    >
+                      <Store className="h-4 w-4" />
+                      Switch to Dealer Mode
+                    </DropdownMenuItem>
+                  )}
+
                   <DropdownMenuItem
                     onClick={handleLogout}
                     className="flex items-center gap-2 text-destructive cursor-pointer"
@@ -209,27 +264,70 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* B2B Bar */}
-      <div className="w-full border-b border-border/30 bg-gradient-to-r from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-sm">
-        <div className="container mx-auto px-4 h-8 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
-              B2B / Dealer Zone
-            </span>
-            <span className="h-3 w-px bg-slate-600" />
-            <span className="text-[10px] text-slate-400">
-              Verified dealers &amp; bulk buyers
-            </span>
+      {/* B2B Bar — changes based on dealer mode */}
+      {dealerMode ? (
+        <div className="w-full border-b border-green-500/30 bg-gradient-to-r from-green-950/90 via-green-900/80 to-green-950/90 backdrop-blur-sm">
+          <div className="container mx-auto px-4 h-8 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-[10px] font-bold text-green-300 tracking-wide">
+                Dealer Mode Active
+              </span>
+              <span className="h-3 w-px bg-green-700" />
+              <span className="text-[10px] text-green-400/70">
+                Verified Dealer
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/dealer"
+                className="text-[10px] font-semibold text-green-300 hover:text-green-200 transition-colors flex items-center gap-1"
+                data-ocid="nav.link"
+              >
+                <LayoutDashboard className="h-3 w-3" />
+                Dashboard
+              </Link>
+              <span className="h-3 w-px bg-green-700" />
+              <Link
+                to="/post"
+                className="text-[10px] font-semibold text-green-300 hover:text-green-200 transition-colors"
+                data-ocid="nav.link"
+              >
+                Post Bulk Ad
+              </Link>
+              <span className="h-3 w-px bg-green-700" />
+              <Link
+                to="/profile"
+                className="text-[10px] font-semibold text-green-300 hover:text-green-200 transition-colors"
+                data-ocid="nav.link"
+              >
+                My Listings
+              </Link>
+            </div>
           </div>
-          <Link
-            to="/b2b"
-            className="text-[10px] font-semibold text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1"
-            data-ocid="nav.link"
-          >
-            Register as Dealer <span>→</span>
-          </Link>
         </div>
-      </div>
+      ) : (
+        <div className="w-full border-b border-border/30 bg-gradient-to-r from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-sm">
+          <div className="container mx-auto px-4 h-8 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
+                B2B / Dealer Zone
+              </span>
+              <span className="h-3 w-px bg-slate-600" />
+              <span className="text-[10px] text-slate-400">
+                Verified dealers &amp; bulk buyers
+              </span>
+            </div>
+            <Link
+              to="/b2b"
+              className="text-[10px] font-semibold text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1"
+              data-ocid="nav.link"
+            >
+              Register as Dealer <span>→</span>
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

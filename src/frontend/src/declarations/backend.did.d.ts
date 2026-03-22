@@ -10,6 +10,23 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export type DealerKycStatus = { 'pending' : null } |
+  { 'approved' : null } |
+  { 'rejected' : null };
+export interface DealerRegistration {
+  'id' : string,
+  'gst' : string,
+  'pan' : string,
+  'registrantPrincipal' : Principal,
+  'businessName' : string,
+  'kycStatus' : DealerKycStatus,
+  'timestamp' : Time,
+  'aadhaarHash' : string,
+  'mobile' : string,
+  'registrationType' : DealerRegistrationType,
+}
+export type DealerRegistrationType = { 'seller' : null } |
+  { 'buyer' : null };
 export type ExternalBlob = Uint8Array;
 export interface Listing {
   'id' : string,
@@ -99,6 +116,7 @@ export interface _SERVICE {
   'filterByCategory' : ActorMethod<[ListingCategory], Array<Listing>>,
   'filterByCondition' : ActorMethod<[ListingCondition], Array<Listing>>,
   'filterByPriceRange' : ActorMethod<[bigint, bigint], Array<Listing>>,
+  'getAllDealerRegistrations' : ActorMethod<[], Array<DealerRegistration>>,
   'getAllListings' : ActorMethod<[], Array<Listing>>,
   'getAllListingsByPrice' : ActorMethod<[], Array<Listing>>,
   'getAllMessages' : ActorMethod<[], Array<Message>>,
@@ -110,6 +128,7 @@ export interface _SERVICE {
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getListingById' : ActorMethod<[string], [] | [Listing]>,
   'getMessagesForListing' : ActorMethod<[string], Array<Message>>,
+  'getMyDealerRegistration' : ActorMethod<[], [] | [DealerRegistration]>,
   'getPickupBooking' : ActorMethod<[string], [] | [PickupBooking]>,
   'getPickupsByDate' : ActorMethod<[string], Array<PickupBooking>>,
   'getPickupsByStatus' : ActorMethod<
@@ -122,8 +141,13 @@ export interface _SERVICE {
   'postMessage' : ActorMethod<[string, Principal, string], string>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'searchListings' : ActorMethod<[string], Array<Listing>>,
+  'submitDealerRegistration' : ActorMethod<
+    [string, string, string, string, string, DealerRegistrationType],
+    string
+  >,
   'submitPickupBooking' : ActorMethod<[PickupBooking], string>,
   'updateBookingStatus' : ActorMethod<[string, PickupBookingStatus], undefined>,
+  'updateDealerKycStatus' : ActorMethod<[string, DealerKycStatus], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

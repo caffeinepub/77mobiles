@@ -12,6 +12,9 @@ import ProfileSetupModal from "./components/ProfileSetupModal";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import { useGetCallerUserProfile } from "./hooks/useQueries";
 import AdminPage from "./pages/AdminPage";
+import B2BBuyerPage from "./pages/B2BBuyerPage";
+import B2BSellerPage from "./pages/B2BSellerPage";
+import DealerDashboardPage from "./pages/DealerDashboardPage";
 import DealerSignupPage from "./pages/DealerSignupPage";
 import HomePage from "./pages/HomePage";
 import InstantBuyPage from "./pages/InstantBuyPage";
@@ -80,6 +83,21 @@ const b2bRoute = createRoute({
   path: "/b2b",
   component: DealerSignupPage,
 });
+const dealerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dealer",
+  component: DealerDashboardPage,
+});
+const b2bSellerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/b2b-seller",
+  component: B2BSellerPage,
+});
+const b2bBuyerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/b2b-buyer",
+  component: B2BBuyerPage,
+});
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -90,6 +108,9 @@ const routeTree = rootRoute.addChildren([
   instantBuyRoute,
   adminRoute,
   b2bRoute,
+  dealerRoute,
+  b2bSellerRoute,
+  b2bBuyerRoute,
 ]);
 
 const router = createRouter({ routeTree });

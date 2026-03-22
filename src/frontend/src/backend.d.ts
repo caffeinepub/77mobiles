@@ -15,18 +15,6 @@ export class ExternalBlob {
     withUploadProgress(onProgress: (percentage: number) => void): ExternalBlob;
 }
 export type Time = bigint;
-export interface PickupBooking {
-    id: string;
-    status: PickupBookingStatus;
-    date: string;
-    sellerName: string;
-    address: string;
-    timestamp: Time;
-    phone: string;
-    quotedPrice: bigint;
-    timeSlot: string;
-    deviceModel: string;
-}
 export interface Listing {
     id: string;
     title: string;
@@ -38,6 +26,30 @@ export interface Listing {
     location: string;
     condition: ListingCondition;
     images: Array<ExternalBlob>;
+}
+export interface DealerRegistration {
+    id: string;
+    gst: string;
+    pan: string;
+    registrantPrincipal: Principal;
+    businessName: string;
+    kycStatus: DealerKycStatus;
+    timestamp: Time;
+    aadhaarHash: string;
+    mobile: string;
+    registrationType: DealerRegistrationType;
+}
+export interface PickupBooking {
+    id: string;
+    status: PickupBookingStatus;
+    date: string;
+    sellerName: string;
+    address: string;
+    timestamp: Time;
+    phone: string;
+    quotedPrice: bigint;
+    timeSlot: string;
+    deviceModel: string;
 }
 export interface Message {
     id: string;
@@ -52,6 +64,15 @@ export interface UserProfile {
     isVerified: boolean;
     aadhaarHash: string;
     phone: string;
+}
+export enum DealerKycStatus {
+    pending = "pending",
+    approved = "approved",
+    rejected = "rejected"
+}
+export enum DealerRegistrationType {
+    seller = "seller",
+    buyer = "buyer"
 }
 export enum ListingCategory {
     watches = "watches",
@@ -83,6 +104,7 @@ export interface backendInterface {
     filterByCategory(category: ListingCategory): Promise<Array<Listing>>;
     filterByCondition(condition: ListingCondition): Promise<Array<Listing>>;
     filterByPriceRange(minPrice: bigint, maxPrice: bigint): Promise<Array<Listing>>;
+    getAllDealerRegistrations(): Promise<Array<DealerRegistration>>;
     getAllListings(): Promise<Array<Listing>>;
     getAllListingsByPrice(): Promise<Array<Listing>>;
     getAllMessages(): Promise<Array<Message>>;
@@ -94,6 +116,7 @@ export interface backendInterface {
     getCallerUserRole(): Promise<UserRole>;
     getListingById(listingId: string): Promise<Listing | null>;
     getMessagesForListing(listingId: string): Promise<Array<Message>>;
+    getMyDealerRegistration(): Promise<DealerRegistration | null>;
     getPickupBooking(bookingId: string): Promise<PickupBooking | null>;
     getPickupsByDate(date: string): Promise<Array<PickupBooking>>;
     getPickupsByStatus(status: PickupBookingStatus): Promise<Array<PickupBooking>>;
@@ -103,6 +126,8 @@ export interface backendInterface {
     postMessage(listingId: string, recipient: Principal, content: string): Promise<string>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     searchListings(searchText: string): Promise<Array<Listing>>;
+    submitDealerRegistration(pan: string, gst: string, aadhaarHash: string, mobile: string, businessName: string, registrationType: DealerRegistrationType): Promise<string>;
     submitPickupBooking(booking: PickupBooking): Promise<string>;
     updateBookingStatus(bookingId: string, newStatus: PickupBookingStatus): Promise<void>;
+    updateDealerKycStatus(registrationId: string, newStatus: DealerKycStatus): Promise<void>;
 }

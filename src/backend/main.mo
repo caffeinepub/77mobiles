@@ -1,12 +1,13 @@
 import Principal "mo:core/Principal";
 import Time "mo:core/Time";
-import Iter "mo:core/Iter";
 import Text "mo:core/Text";
-import List "mo:core/List";
+import Array "mo:core/Array";
 import Order "mo:core/Order";
+import Nat "mo:core/Nat";
 import Int "mo:core/Int";
 import Runtime "mo:core/Runtime";
 import Map "mo:core/Map";
+import Iter "mo:core/Iter";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 import MixinStorage "blob-storage/Mixin";
@@ -127,8 +128,8 @@ actor {
   let pickupBookings = Map.empty<Text, PickupBooking>();
 
   public shared ({ caller }) func createListing(listing : Listing) : async Text {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can create listings");
+    if (caller.isAnonymous()) {
+      Runtime.trap("Unauthorized: Please login to post an ad");
     };
     nextListingId += 1;
     let id = generateId("listing", nextListingId);
@@ -143,7 +144,7 @@ actor {
     id;
   };
 
-  public query ({ caller }) func searchListings(searchText : Text) : async [Listing] {
+  public query func searchListings(searchText : Text) : async [Listing] {
     listings.values().toArray().filter(
       func(listing) {
         listing.title.contains(#text searchText) or listing.description.contains(#text searchText);
@@ -151,7 +152,7 @@ actor {
     ).sort();
   };
 
-  public query ({ caller }) func filterByCategory(category : ListingCategory) : async [Listing] {
+  public query func filterByCategory(category : ListingCategory) : async [Listing] {
     listings.values().toArray().filter(
       func(listing) {
         listing.category == category;
@@ -159,7 +160,7 @@ actor {
     ).sort();
   };
 
-  public query ({ caller }) func filterByCondition(condition : ListingCondition) : async [Listing] {
+  public query func filterByCondition(condition : ListingCondition) : async [Listing] {
     listings.values().toArray().filter(
       func(listing) {
         listing.condition == condition;
@@ -167,7 +168,7 @@ actor {
     ).sort();
   };
 
-  public query ({ caller }) func filterByPriceRange(minPrice : Nat, maxPrice : Nat) : async [Listing] {
+  public query func filterByPriceRange(minPrice : Nat, maxPrice : Nat) : async [Listing] {
     listings.values().toArray().filter(
       func(listing) {
         listing.price >= minPrice and listing.price <= maxPrice;
@@ -175,15 +176,15 @@ actor {
     ).sort(Listing.compareByPrice);
   };
 
-  public query ({ caller }) func getListingById(listingId : Text) : async ?Listing {
+  public query func getListingById(listingId : Text) : async ?Listing {
     listings.get(listingId);
   };
 
-  public query ({ caller }) func getAllListings() : async [Listing] {
+  public query func getAllListings() : async [Listing] {
     listings.values().toArray().sort();
   };
 
-  public query ({ caller }) func getAllListingsByPrice() : async [Listing] {
+  public query func getAllListingsByPrice() : async [Listing] {
     listings.values().toArray().sort(Listing.compareByPrice);
   };
 
@@ -199,9 +200,13 @@ actor {
     };
   };
 
-  public shared ({ caller }) func postMessage(listingId : Text, recipient : Principal, content : Text) : async Text {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can send messages");
+  public shared ({ caller }) func postMessage(
+    listingId : Text,
+    recipient : Principal,
+    content : Text,
+  ) : async Text {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Unauthorized: Please login to send messages");
     };
     switch (listings.get(listingId)) {
       case (null) { Runtime.trap("Listing not found") };
@@ -244,7 +249,7 @@ actor {
   };
 
   public query ({ caller }) func getCallerMessagesWithUser(user : Principal) : async [Message] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+    if (caller.isAnonymous()) {
       Runtime.trap("Unauthorized: Only users can view messages");
     };
     messages.values().toArray().filter(
@@ -256,39 +261,39 @@ actor {
   };
 
   public query ({ caller }) func getCallerRelatedListings() : async [Listing] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+    if (caller.isAnonymous()) {
       Runtime.trap("Unauthorized: Only users can view their listings");
     };
     listings.values().toArray().filter(func(listing) { listing.seller == caller }).sort();
   };
 
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+    if (caller.isAnonymous()) {
       Runtime.trap("Unauthorized: Only users can save profiles");
     };
     userProfiles.add(caller, profile);
   };
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+    if (caller.isAnonymous()) {
       Runtime.trap("Unauthorized: Only users can view their profile");
     };
     userProfiles.get(caller);
   };
 
-  public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
+  public query func getUserProfile(user : Principal) : async ?UserProfile {
     userProfiles.get(user);
   };
 
-  public query ({ caller }) func getAllUserProfiles() : async [UserProfile] {
+  public query func getAllUserProfiles() : async [UserProfile] {
     userProfiles.values().toArray().sort();
   };
 
-  public query ({ caller }) func getAllMessages() : async [Message] {
+  public query func getAllMessages() : async [Message] {
     messages.values().toArray().sort(Message.compareByTimestamp);
   };
 
-  public shared ({ caller }) func submitPickupBooking(booking : PickupBooking) : async Text {
+  public shared func submitPickupBooking(booking : PickupBooking) : async Text {
     nextBookingId += 1;
     let id = generateId("booking", nextBookingId);
     let newBooking : PickupBooking = {
@@ -358,5 +363,98 @@ actor {
     pickupBookings.values().toArray().filter(
       func(booking) { booking.status == status }
     ).sort(PickupBooking.compareByTimestamp);
+  };
+
+  public type DealerRegistrationType = {
+    #seller;
+    #buyer;
+  };
+
+  public type DealerKycStatus = {
+    #pending;
+    #approved;
+    #rejected;
+  };
+
+  public type DealerRegistration = {
+    id : Text;
+    registrantPrincipal : Principal;
+    registrationType : DealerRegistrationType;
+    pan : Text;
+    gst : Text;
+    aadhaarHash : Text;
+    mobile : Text;
+    businessName : Text;
+    kycStatus : DealerKycStatus;
+    timestamp : Time.Time;
+  };
+
+  module DealerRegistration {
+    public func compareByTimestamp(reg1 : DealerRegistration, reg2 : DealerRegistration) : Order.Order {
+      Int.compare(reg2.timestamp, reg1.timestamp);
+    };
+  };
+
+  var nextDealerRegistrationId = 1;
+  let dealerRegistrations = Map.empty<Text, DealerRegistration>();
+
+  public shared ({ caller }) func submitDealerRegistration(pan : Text, gst : Text, aadhaarHash : Text, mobile : Text, businessName : Text, registrationType : DealerRegistrationType) : async Text {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Unauthorized: Please login to register as a dealer");
+    };
+
+    nextDealerRegistrationId += 1;
+    let id = generateId("dealer_registration", nextDealerRegistrationId);
+
+    let registration : DealerRegistration = {
+      id;
+      registrantPrincipal = caller;
+      registrationType;
+      pan;
+      gst;
+      aadhaarHash;
+      mobile;
+      businessName;
+      kycStatus = #pending;
+      timestamp = Time.now();
+    };
+
+    dealerRegistrations.add(id, registration);
+    id;
+  };
+
+  public query ({ caller }) func getMyDealerRegistration() : async ?DealerRegistration {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Unauthorized: Please login to view your dealer registration");
+    };
+    let registrations = dealerRegistrations.values().toArray();
+    switch (registrations.find(func(reg) { reg.registrantPrincipal == caller })) {
+      case (null) { null };
+      case (?registration) { ?registration };
+    };
+  };
+
+  public query ({ caller }) func getAllDealerRegistrations() : async [DealerRegistration] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can view all dealer registrations");
+    };
+    dealerRegistrations.values().toArray().sort(DealerRegistration.compareByTimestamp);
+  };
+
+  public shared ({ caller }) func updateDealerKycStatus(registrationId : Text, newStatus : DealerKycStatus) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update dealer KYC status");
+    };
+
+    switch (dealerRegistrations.get(registrationId)) {
+      case (null) { Runtime.trap("Dealer registration not found") };
+      case (?registration) {
+        let updatedRegistration = {
+          registration with
+          kycStatus = newStatus;
+        };
+        dealerRegistrations.add(registrationId, updatedRegistration);
+      };
+    };
   };
 };

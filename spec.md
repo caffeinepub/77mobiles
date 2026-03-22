@@ -1,34 +1,24 @@
 # 77mobiles
 
 ## Current State
-- Full-stack gadget marketplace with homepage, listing detail, post ad, instant buy, chat, profile, admin pages
-- Navbar with logo, search, post ad button, user menu
-- SellTo77Section hero banner (large, py-8/p-8) on homepage
-- PostAdPage: on success navigates to listing detail; on error shows fallback screen with fake local ID
-- No B2B section or dealer registration flow
+
+PostAdPage exists at `/post` with a basic form UI. The backend `createListing` function requires `#user` role which blocks newly registered users. Video upload exists as UI-only (not uploaded to storage). The form design is plain/minimal.
 
 ## Requested Changes (Diff)
 
 ### Add
-- B2B header bar below main navbar with label "B2B / Dealer Zone" and link to dealer sign-up page
-- `/b2b` dealer sign-up page with two tabs:
-  - Seller tab: PAN card number, Aadhaar number, mobile number fields
-  - Buyer/Business tab: GST number, Aadhaar number, mobile number fields
-- On successful B2B form submit, show confirmation screen
+- Blob storage video upload: upload 360° video file to blob storage before submitting listing, store video URL in listing description with `[Video: <url>]` prefix
+- Dark navy + yellow accent UI design for PostAdPage matching IMG_9744 reference (dark navy background, yellow gold accents, clean white card form)
 
 ### Modify
-- SellTo77Section: reduce padding (p-5 sm:p-6), reduce heading text size, reduce button size - make the banner more compact
-- Homepage hero bento card: reduce padding (p-5), reduce heading text size
-- Category tiles: reduce px/py slightly
-- PostAdPage: After successful `createListing`, pre-populate the listing query cache with the returned listing data so it is immediately visible on the detail page; also ensure `staleTime` on `useGetListing` is 0 to force refetch; navigate to listing detail page on success
-- PostAdPage: Fix fallback - instead of showing a fake success, try navigating to home and showing a toast
+- Backend `createListing`: remove `#user` role gate — allow any authenticated (non-anonymous) caller to post
+- PostAdPage: full UI redesign with dark navy hero header, yellow accents, card form with clean inputs, upload progress for video
 
 ### Remove
-- Nothing removed
+- Role-based auth check in createListing (replaced by anonymous check)
 
 ## Implementation Plan
-1. Add B2B header bar component in Navbar.tsx or as a separate bar rendered in RootLayout
-2. Create `src/frontend/src/pages/DealerSignupPage.tsx` with seller/buyer tabs and form fields
-3. Add `/b2b` route in App.tsx
-4. Reduce sizes in HomePage.tsx SellTo77Section and hero card
-5. Fix PostAdPage to pre-populate listing cache and navigate reliably
+
+1. Fix main.mo createListing: replace `AccessControl.hasPermission(caller, #user)` with a simple check that caller is not anonymous principal
+2. Update PostAdPage with new navy/yellow design: hero header with title in yellow, card form, blob storage video upload with progress indicator
+3. In handleSubmit: if videoFile selected, convert to Uint8Array, call ExternalBlob.fromBytes().withUploadProgress() upload, get URL, prepend `[Video: <url>]` to description

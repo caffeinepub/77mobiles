@@ -1,10 +1,11 @@
-import type { Listing } from "@/backend";
+import { ExternalBlob, type Listing } from "@/backend";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -15,7 +16,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
 import {
-  AlertCircle,
+  CheckCircle2,
   Info,
   Loader2,
   MapPin,
@@ -29,12 +30,13 @@ import { toast } from "sonner";
 import ModelCombobox from "../components/ModelCombobox";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
-  ExternalBlob,
   ListingCategory,
   ListingCondition,
   useCreateListing,
 } from "../hooks/useQueries";
 import { encodeGeoLocation, reverseGeocode } from "../utils/geo";
+
+const NAVY = "#0a1929";
 
 export default function PostAdPage() {
   const navigate = useNavigate();
@@ -57,6 +59,8 @@ export default function PostAdPage() {
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [showLocationHelp, setShowLocationHelp] = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const locationInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,6 +87,7 @@ export default function PostAdPage() {
     if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
     setVideoFile(null);
     setVideoPreviewUrl(null);
+    setUploadProgress(0);
   };
 
   const handleModelChange = (m: string) => {
@@ -152,15 +157,24 @@ export default function PostAdPage() {
       return;
     }
 
-    // Build video blobs — skip gracefully if upload/encoding fails
+    // Upload video to blob storage if present
     let videoBlobs: ExternalBlob[] = [];
     if (videoFile) {
       try {
-        const buffer = await videoFile.arrayBuffer();
-        videoBlobs = [ExternalBlob.fromBytes(new Uint8Array(buffer))];
-      } catch {
-        // video upload failed — proceed without it
-        toast("Video could not be processed — ad will be posted without it.");
+        setVideoUploading(true);
+        setUploadProgress(0);
+        const bytes = new Uint8Array(await videoFile.arrayBuffer());
+        const blob = ExternalBlob.fromBytes(bytes).withUploadProgress((pct) => {
+          setUploadProgress(Math.round(pct));
+        });
+        videoBlobs = [blob];
+      } catch (err) {
+        console.warn("Video prep failed, proceeding without video:", err);
+        toast.warning(
+          "Video could not be prepared — ad will post without video.",
+        );
+      } finally {
+        setVideoUploading(false);
       }
     }
 
@@ -190,7 +204,6 @@ export default function PostAdPage() {
       navigate({ to: "/listing/$listingId", params: { listingId: newId } });
     } catch (err) {
       console.error("createListing failed:", err);
-      navigate({ to: "/" });
       toast.error("Failed to post ad. Please try again.");
     }
   };
@@ -199,454 +212,563 @@ export default function PostAdPage() {
     ? location.split("|")[1]
     : location;
 
+  // ── Login wall ──────────────────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
-      <div className="container mx-auto px-4 py-16 max-w-md text-center">
-        <span className="text-6xl mb-4 block">🔒</span>
-        <h2 className="font-display font-bold text-2xl mb-2">
-          Login to Post an Ad
-        </h2>
-        <p className="text-muted-foreground text-sm mb-6">
-          Create a free account to start selling your gadgets.
-        </p>
-        <Button
-          onClick={() => login()}
-          disabled={isLoggingIn}
-          size="lg"
-          className="w-full"
-          data-ocid="post.primary_button"
-        >
-          {isLoggingIn ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Logging in...
-            </>
-          ) : (
-            "Login to Continue"
-          )}
-        </Button>
+      <div
+        className="min-h-screen flex items-center justify-center px-4 py-16"
+        style={{
+          background: `linear-gradient(160deg, ${NAVY} 0%, #0d1f3a 60%, #111827 100%)`,
+        }}
+      >
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
+          <div className="text-5xl mb-4">🔒</div>
+          <h2 className="font-display font-bold text-2xl text-gray-900 mb-2">
+            Login to Post an Ad
+          </h2>
+          <p className="text-gray-500 text-sm mb-6">
+            Create a free account to start selling your gadgets.
+          </p>
+          <Button
+            onClick={() => login()}
+            disabled={isLoggingIn}
+            size="lg"
+            className="w-full bg-[#0a1929] hover:bg-[#0f2540] text-white font-semibold rounded-xl"
+            data-ocid="post.primary_button"
+          >
+            {isLoggingIn ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Logging in...
+              </>
+            ) : (
+              "Login to Continue"
+            )}
+          </Button>
+        </div>
       </div>
     );
   }
 
+  // ── Main page ────────────────────────────────────────────────────────────
   return (
-    <div className="container mx-auto px-4 py-6 max-w-2xl">
-      <div className="mb-6">
-        <h1 className="font-display font-bold text-2xl">Post a Free Ad</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          List your gadget in minutes
+    <div
+      className="min-h-screen"
+      style={{
+        background: `linear-gradient(160deg, ${NAVY} 0%, #0d1f3a 60%, #111827 100%)`,
+      }}
+    >
+      {/* Hero Header */}
+      <div className="text-center pt-10 pb-6 px-4">
+        <div
+          className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 uppercase tracking-widest"
+          style={{
+            background: "rgba(245,200,66,0.15)",
+            color: "#F5C842",
+            border: "1px solid rgba(245,200,66,0.3)",
+          }}
+        >
+          ✦ 100% Free · No Commissions
+        </div>
+        <h1 className="font-display font-bold text-4xl md:text-5xl text-white leading-tight">
+          Post a{" "}
+          <span
+            style={{
+              color: "#F5C842",
+              textShadow: "0 0 24px rgba(245,200,66,0.4)",
+            }}
+          >
+            Free
+          </span>{" "}
+          Ad
+        </h1>
+        <p className="text-blue-200/70 text-base mt-3 max-w-sm mx-auto">
+          List your gadget in minutes. Reach thousands of local buyers.
         </p>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-5"
-        data-ocid="post.panel"
-      >
-        {/* Category + Condition */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="category">
-              Category <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={category}
-              onValueChange={(v) => {
-                setCategory(v as ListingCategory);
-                setModel("");
-              }}
-            >
-              <SelectTrigger data-ocid="post.select">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ListingCategory.phones}>
-                  📱 Phones
-                </SelectItem>
-                <SelectItem value={ListingCategory.macbooks}>
-                  💻 MacBooks
-                </SelectItem>
-                <SelectItem value={ListingCategory.watches}>
-                  ⌚ Watches
-                </SelectItem>
-                <SelectItem value={ListingCategory.earphones}>
-                  🎧 Earphones
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="condition">
-              Condition <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={condition}
-              onValueChange={(v) => setCondition(v as ListingCondition)}
-            >
-              <SelectTrigger data-ocid="post.select">
-                <SelectValue placeholder="Select condition" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ListingCondition.new_}>🟢 New</SelectItem>
-                <SelectItem value={ListingCondition.likeNew}>
-                  🔵 Like New
-                </SelectItem>
-                <SelectItem value={ListingCondition.good}>🟡 Good</SelectItem>
-                <SelectItem value={ListingCondition.fair}>🟠 Fair</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Model selector — appears when category is set */}
-        {category && (
-          <div className="space-y-1.5">
-            <Label>
-              Model <span className="text-destructive">*</span>
-            </Label>
-            <ModelCombobox
-              category={category}
-              value={model}
-              onChange={handleModelChange}
-            />
-          </div>
-        )}
-
-        {/* Title */}
-        <div className="space-y-1.5">
-          <Label htmlFor="title">
-            Title <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="title"
-            placeholder="e.g. iPhone 15 Pro 256GB Space Black"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={100}
-            data-ocid="post.input"
-          />
-        </div>
-
-        {/* Price + Location */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="price">
-              Price (₹) <span className="text-destructive">*</span>
-            </Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-                ₹
-              </span>
-              <Input
-                id="price"
-                type="number"
-                placeholder="e.g. 45000"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className="pl-7"
-                min="1"
-                data-ocid="post.input"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="location">
-              Location <span className="text-destructive">*</span>
-            </Label>
-            <div className="flex gap-1.5">
-              <Input
-                ref={locationInputRef}
-                id="location"
-                placeholder="e.g. Mumbai, Maharashtra"
-                value={locationDisplay}
-                onChange={(e) => setLocation(e.target.value)}
-                className="flex-1 min-w-0"
-                data-ocid="post.input"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleDetectLocation}
-                disabled={detectingLocation}
-                className="shrink-0 px-2 h-10 text-muted-foreground hover:text-primary"
-                title="Detect my location"
-                data-ocid="post.secondary_button"
-              >
-                {detectingLocation ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <MapPin className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Location Help Panel */}
-        {showLocationHelp && locationError && (
+      {/* Form Card */}
+      <div className="max-w-lg mx-auto px-4 pb-16">
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          {/* Card top accent bar */}
           <div
-            className="rounded-xl border border-primary/30 bg-primary/5 p-4 relative"
-            style={{ boxShadow: "0 0 12px oklch(0.72 0.2 220 / 0.1)" }}
+            className="h-1 w-full"
+            style={{
+              background: "linear-gradient(90deg, #F5C842, #f59e0b, #F5C842)",
+            }}
+          />
+
+          <form
+            onSubmit={handleSubmit}
+            className="p-6 space-y-5"
             data-ocid="post.panel"
           >
-            <button
-              type="button"
-              onClick={() => setShowLocationHelp(false)}
-              className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Dismiss"
-              data-ocid="post.close_button"
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <div className="flex items-start gap-2 mb-3">
-              <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-              <p className="text-sm font-medium text-foreground">
-                Location access is blocked
-              </p>
-            </div>
-            <p className="text-xs text-muted-foreground mb-2 ml-6">
-              To enable location access:
-            </p>
-            <ul className="text-xs text-muted-foreground space-y-1 ml-6 mb-4">
-              <li>
-                <span className="text-foreground font-medium">
-                  Chrome/Edge:
-                </span>{" "}
-                Click the lock icon in the address bar → Site settings →
-                Location → Allow
-              </li>
-              <li>
-                <span className="text-foreground font-medium">Safari:</span>{" "}
-                Settings → Safari → Location → Allow
-              </li>
-              <li>
-                <span className="text-foreground font-medium">Firefox:</span>{" "}
-                Click the lock icon → Clear permissions → Reload
-              </li>
-            </ul>
-            <div className="flex gap-2 ml-6">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleDetectLocation}
-                disabled={detectingLocation}
-                className="text-xs border-primary/40 hover:bg-primary/10 hover:border-primary"
-                data-ocid="post.secondary_button"
-              >
-                {detectingLocation ? (
-                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                ) : null}
-                Try Again
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setShowLocationHelp(false);
-                  locationInputRef.current?.focus();
-                }}
-                className="text-xs hover:text-primary"
-                data-ocid="post.secondary_button"
-              >
-                Enter Manually
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Description */}
-        <div className="space-y-1.5">
-          <Label htmlFor="description">
-            Description <span className="text-destructive">*</span>
-          </Label>
-          <Textarea
-            id="description"
-            placeholder="Describe the device, any accessories included, reason for selling..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={4}
-            maxLength={1000}
-            data-ocid="post.textarea"
-          />
-          <p className="text-xs text-muted-foreground text-right">
-            {description.length}/1000
-          </p>
-        </div>
-
-        {/* WhatsApp Number */}
-        <div className="space-y-2">
-          <Label
-            htmlFor="whatsapp"
-            className="flex items-center gap-2 text-sm font-medium"
-          >
-            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-[#25D366] text-white text-[10px] font-bold">
-              W
-            </span>
-            WhatsApp Number{" "}
-            <span className="text-muted-foreground font-normal">
-              (optional)
-            </span>
-          </Label>
-          <Input
-            id="whatsapp"
-            placeholder="+91 98765 43210"
-            value={whatsappNumber}
-            onChange={(e) => setWhatsappNumber(e.target.value)}
-            className="rounded-xl"
-            data-ocid="post.input"
-          />
-          <p className="text-xs text-muted-foreground">
-            Buyers can reach you directly on WhatsApp
-          </p>
-        </div>
-
-        {/* Featured Listing Toggle */}
-        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-          <div className="flex items-start gap-3">
-            <Checkbox
-              id="featured"
-              checked={isFeatured}
-              onCheckedChange={(checked) => setIsFeatured(checked === true)}
-              className="mt-0.5"
-              data-ocid="post.checkbox"
-            />
-            <div className="flex-1">
-              <Label
-                htmlFor="featured"
-                className="flex items-center gap-2 cursor-pointer font-semibold text-sm"
-              >
-                <Star className="h-4 w-4 text-amber-500" />
-                Feature my listing — ₹100
-              </Label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Featured listings appear at the top of search results for 7 days
-              </p>
-            </div>
-          </div>
-          {isFeatured && (
-            <Badge
-              variant="secondary"
-              className="ml-7 bg-amber-50 text-amber-700 border border-amber-200 text-xs"
-            >
-              ₹100 will be collected at our office or via UPI before activation
-            </Badge>
-          )}
-        </div>
-
-        {/* 360° Video Upload — optional */}
-        <div className="space-y-2">
-          <Label>
-            360° Device Video{" "}
-            <span className="text-muted-foreground font-normal">
-              (optional)
-            </span>
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            Upload a complete 360° walkthrough video of your device
-          </p>
-          {!videoFile ? (
-            <button
-              type="button"
-              onClick={() => videoInputRef.current?.click()}
-              className="w-full flex flex-col items-center justify-center gap-2 py-8 rounded-2xl border-2 border-dashed border-border/60 hover:border-primary/50 bg-muted/50 hover:bg-primary/5 transition-colors text-muted-foreground hover:text-primary"
-              data-ocid="post.upload_button"
-            >
-              <Video className="h-8 w-8" />
-              <span className="text-sm font-medium">Upload 360° Video</span>
-              <span className="text-xs opacity-70">
-                Click to select a video file
-              </span>
-            </button>
-          ) : (
-            <div className="space-y-2">
-              {videoPreviewUrl && (
-                <video
-                  src={videoPreviewUrl}
-                  controls
-                  className="w-full rounded-xl max-h-56 bg-black"
+            {/* Category + Condition */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="category"
+                  className="text-gray-700 font-medium text-sm"
                 >
-                  <track kind="captions" />
-                </video>
-              )}
-              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-muted/60 border border-border">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Video className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="text-sm truncate text-foreground">
-                    {videoFile.name}
+                  Category <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={category}
+                  onValueChange={(v) => {
+                    setCategory(v as ListingCategory);
+                    setModel("");
+                  }}
+                >
+                  <SelectTrigger
+                    className="border-gray-200 bg-gray-50 hover:bg-white focus:border-blue-400 transition-colors"
+                    data-ocid="post.select"
+                  >
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ListingCategory.phones}>
+                      📱 Phones
+                    </SelectItem>
+                    <SelectItem value={ListingCategory.macbooks}>
+                      💻 MacBooks
+                    </SelectItem>
+                    <SelectItem value={ListingCategory.watches}>
+                      ⌚ Watches
+                    </SelectItem>
+                    <SelectItem value={ListingCategory.earphones}>
+                      🎧 Earphones
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="condition"
+                  className="text-gray-700 font-medium text-sm"
+                >
+                  Condition <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={condition}
+                  onValueChange={(v) => setCondition(v as ListingCondition)}
+                >
+                  <SelectTrigger
+                    className="border-gray-200 bg-gray-50 hover:bg-white focus:border-blue-400 transition-colors"
+                    data-ocid="post.select"
+                  >
+                    <SelectValue placeholder="Condition" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ListingCondition.new_}>
+                      🟢 New
+                    </SelectItem>
+                    <SelectItem value={ListingCondition.likeNew}>
+                      🔵 Like New
+                    </SelectItem>
+                    <SelectItem value={ListingCondition.good}>
+                      🟡 Good
+                    </SelectItem>
+                    <SelectItem value={ListingCondition.fair}>
+                      🟠 Fair
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Model */}
+            {category && (
+              <div className="space-y-1.5">
+                <Label className="text-gray-700 font-medium text-sm">
+                  Model <span className="text-red-500">*</span>
+                </Label>
+                <ModelCombobox
+                  category={category}
+                  value={model}
+                  onChange={handleModelChange}
+                />
+              </div>
+            )}
+
+            {/* Title */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="title"
+                className="text-gray-700 font-medium text-sm"
+              >
+                Title <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="title"
+                placeholder="e.g. iPhone 15 Pro 256GB Space Black"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={100}
+                className="border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-400"
+                data-ocid="post.input"
+              />
+            </div>
+
+            {/* Price + Location */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="price"
+                  className="text-gray-700 font-medium text-sm"
+                >
+                  Price (₹) <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">
+                    ₹
                   </span>
+                  <Input
+                    id="price"
+                    type="number"
+                    placeholder="45000"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    className="pl-7 border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-400"
+                    min="1"
+                    data-ocid="post.input"
+                  />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="location"
+                  className="text-gray-700 font-medium text-sm"
+                >
+                  Location <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex gap-1.5">
+                  <Input
+                    ref={locationInputRef}
+                    id="location"
+                    placeholder="Mumbai, Maharashtra"
+                    value={locationDisplay}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="flex-1 min-w-0 border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-400"
+                    data-ocid="post.input"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDetectLocation}
+                    disabled={detectingLocation}
+                    className="shrink-0 px-2 h-10 text-gray-400 hover:text-blue-600"
+                    title="Detect my location"
+                    data-ocid="post.secondary_button"
+                  >
+                    {detectingLocation ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <MapPin className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Location help */}
+            {showLocationHelp && locationError && (
+              <div
+                className="rounded-xl border border-blue-200 bg-blue-50 p-4 relative"
+                data-ocid="post.panel"
+              >
                 <button
                   type="button"
-                  onClick={removeVideo}
-                  className="shrink-0 p-1 rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
-                  aria-label="Remove video"
+                  onClick={() => setShowLocationHelp(false)}
+                  className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+                  aria-label="Dismiss"
                   data-ocid="post.close_button"
                 >
                   <X className="h-4 w-4" />
                 </button>
+                <div className="flex items-start gap-2 mb-2">
+                  <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                  <p className="text-sm font-medium text-gray-800">
+                    Location access is blocked
+                  </p>
+                </div>
+                <ul className="text-xs text-gray-500 space-y-1 ml-6 mb-3">
+                  <li>
+                    <span className="font-medium text-gray-700">
+                      Chrome/Edge:
+                    </span>{" "}
+                    Lock icon → Site settings → Location → Allow
+                  </li>
+                  <li>
+                    <span className="font-medium text-gray-700">Safari:</span>{" "}
+                    Settings → Safari → Location → Allow
+                  </li>
+                  <li>
+                    <span className="font-medium text-gray-700">Firefox:</span>{" "}
+                    Lock icon → Clear permissions → Reload
+                  </li>
+                </ul>
+                <div className="flex gap-2 ml-6">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleDetectLocation}
+                    disabled={detectingLocation}
+                    className="text-xs"
+                    data-ocid="post.secondary_button"
+                  >
+                    {detectingLocation && (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    )}
+                    Try Again
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowLocationHelp(false);
+                      locationInputRef.current?.focus();
+                    }}
+                    className="text-xs"
+                    data-ocid="post.secondary_button"
+                  >
+                    Enter Manually
+                  </Button>
+                </div>
               </div>
+            )}
+
+            {/* Description */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="description"
+                className="text-gray-700 font-medium text-sm"
+              >
+                Description <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="description"
+                placeholder="Describe the device, accessories included, reason for selling..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={4}
+                maxLength={1000}
+                className="border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-400 resize-none"
+                data-ocid="post.textarea"
+              />
+              <p className="text-xs text-gray-400 text-right">
+                {description.length}/1000
+              </p>
             </div>
-          )}
-          <input
-            ref={videoInputRef}
-            type="file"
-            accept="video/*"
-            className="hidden"
-            onChange={handleVideoChange}
-          />
+
+            {/* WhatsApp */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="whatsapp"
+                className="flex items-center gap-2 text-gray-700 font-medium text-sm"
+              >
+                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-[#25D366] text-white text-[10px] font-bold">
+                  W
+                </span>
+                WhatsApp Number
+                <span className="text-gray-400 font-normal">(optional)</span>
+              </Label>
+              <Input
+                id="whatsapp"
+                placeholder="+91 98765 43210"
+                value={whatsappNumber}
+                onChange={(e) => setWhatsappNumber(e.target.value)}
+                className="border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-400"
+                data-ocid="post.input"
+              />
+              <p className="text-xs text-gray-400">
+                Buyers can reach you directly on WhatsApp
+              </p>
+            </div>
+
+            {/* 360° Video Upload */}
+            <div className="space-y-2">
+              <Label className="text-gray-700 font-medium text-sm flex items-center gap-2">
+                <Video className="h-4 w-4 text-blue-600" />
+                360° Device Video
+                <span className="text-gray-400 font-normal">(optional)</span>
+              </Label>
+              <p className="text-xs text-gray-400">
+                Upload a walkthrough video — stored securely via blob storage
+              </p>
+
+              {!videoFile ? (
+                <button
+                  type="button"
+                  onClick={() => videoInputRef.current?.click()}
+                  className="w-full flex flex-col items-center justify-center gap-2 py-7 rounded-xl border-2 border-dashed border-gray-200 hover:border-blue-400 bg-gray-50 hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600"
+                  data-ocid="post.upload_button"
+                >
+                  <Video className="h-7 w-7" />
+                  <span className="text-sm font-medium">Upload 360° Video</span>
+                  <span className="text-xs opacity-70">
+                    Click to select a video file
+                  </span>
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  {videoPreviewUrl && (
+                    <video
+                      src={videoPreviewUrl}
+                      controls
+                      className="w-full rounded-xl max-h-52 bg-black"
+                    >
+                      <track kind="captions" />
+                    </video>
+                  )}
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Video className="h-4 w-4 shrink-0 text-blue-600" />
+                      <span className="text-sm truncate text-gray-700">
+                        {videoFile.name}
+                      </span>
+                      {videoUploading && (
+                        <Loader2 className="h-3 w-3 animate-spin text-blue-500 shrink-0" />
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeVideo}
+                      className="shrink-0 p-1 rounded-full hover:bg-red-100 hover:text-red-500 text-gray-400 transition-colors"
+                      aria-label="Remove video"
+                      data-ocid="post.close_button"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {/* Upload progress bar */}
+                  {(videoUploading || uploadProgress > 0) && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500">
+                          {videoUploading
+                            ? "Uploading video..."
+                            : "Video ready"}
+                        </span>
+                        <span
+                          className="font-medium"
+                          style={{
+                            color:
+                              uploadProgress === 100 ? "#16a34a" : "#2563eb",
+                          }}
+                        >
+                          {uploadProgress === 100 ? (
+                            <span className="flex items-center gap-1">
+                              <CheckCircle2 className="h-3 w-3" /> Done
+                            </span>
+                          ) : (
+                            `${uploadProgress}%`
+                          )}
+                        </span>
+                      </div>
+                      <Progress
+                        value={uploadProgress}
+                        className="h-1.5"
+                        data-ocid="post.loading_state"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+              <input
+                ref={videoInputRef}
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={handleVideoChange}
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-gray-100" />
+
+            {/* Featured listing */}
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 space-y-2">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="featured"
+                  checked={isFeatured}
+                  onCheckedChange={(checked) => setIsFeatured(checked === true)}
+                  className="mt-0.5"
+                  data-ocid="post.checkbox"
+                />
+                <div className="flex-1">
+                  <Label
+                    htmlFor="featured"
+                    className="flex items-center gap-2 cursor-pointer font-semibold text-sm text-gray-800"
+                  >
+                    <Star className="h-4 w-4 text-amber-500" />
+                    Feature my listing — ₹100
+                  </Label>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Featured listings appear at the top of search results for 7
+                    days
+                  </p>
+                </div>
+              </div>
+              {isFeatured && (
+                <Badge className="ml-7 bg-amber-100 text-amber-700 border border-amber-200 text-xs font-normal">
+                  ₹100 will be collected at our office or via UPI before
+                  activation
+                </Badge>
+              )}
+            </div>
+
+            {/* Free notice */}
+            <Alert className="border-green-100 bg-green-50">
+              <Upload className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-sm text-green-700">
+                Your listing is <strong>100% free</strong> — no hidden fees or
+                commissions.
+              </AlertDescription>
+            </Alert>
+
+            {/* Submit */}
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full font-bold rounded-xl text-white py-3 text-base"
+              style={{
+                background: "linear-gradient(135deg, #0a1929 0%, #1e3a5f 100%)",
+                boxShadow: "0 4px 16px rgba(10,25,41,0.35)",
+              }}
+              disabled={isPending || videoUploading}
+              data-ocid="post.submit_button"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {videoUploading ? "Uploading video..." : "Posting Ad..."}
+                </>
+              ) : (
+                "Post Ad for Free →"
+              )}
+            </Button>
+
+            {/* Beadaholique Notice */}
+            <p className="text-xs text-gray-400 text-center pb-2">
+              Go to{" "}
+              <a
+                href="https://www.beadaholique.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 underline"
+              >
+                Beadaholique.com
+              </a>{" "}
+              for all of your beading supply needs!
+            </p>
+          </form>
         </div>
-
-        {/* Notice */}
-        <Alert className="border-primary/20 bg-primary/5">
-          <Upload className="h-4 w-4 text-primary" />
-          <AlertDescription className="text-sm">
-            Your listing is <strong>100% free</strong> with no hidden fees or
-            commissions.
-          </AlertDescription>
-        </Alert>
-
-        {/* Auth error */}
-        {!isAuthenticated && (
-          <Alert variant="destructive" data-ocid="post.error_state">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>Please login to post an ad.</AlertDescription>
-          </Alert>
-        )}
-
-        <Button
-          type="submit"
-          size="lg"
-          className="w-full font-semibold shadow-glow-sm hover:shadow-glow-primary transition-all duration-300"
-          disabled={isPending}
-          data-ocid="post.submit_button"
-        >
-          {isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Posting Ad...
-            </>
-          ) : (
-            "Post Ad for Free"
-          )}
-        </Button>
-
-        {/* Beadaholique Notice */}
-        <p className="text-xs text-muted-foreground text-center pb-2">
-          Go to{" "}
-          <a
-            href="https://www.beadaholique.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary underline"
-          >
-            Beadaholique.com
-          </a>{" "}
-          for all of your beading supply needs!
-        </p>
-      </form>
+      </div>
     </div>
   );
 }
