@@ -1,0 +1,82 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,200;12..96,400;12..96,600;12..96,800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+    /* Blue marketplace palette */
+    --background: 0.985 0.003 250;
+    --foreground: 0.14 0.02 255;
+    --card: 1 0 0;
+    --card-foreground: 0.14 0.02 255;
+    --popover: 1 0 0;
+    --popover-foreground: 0.14 0.02 255;
+    --primary: 0.52 0.22 258;
+    --primary-foreground: 0.99 0 0;
+    --secondary: 0.94 0.02 255;
+    --secondary-foreground: 0.3 0.06 258;
+    --muted: 0.95 0.012 258;
+    --muted-foreground: 0.52 0.04 255;
+    --accent: 0.94 0.02 255;
+    --accent-foreground: 0.3 0.06 258;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 0.91 0.015 258;
+    --input: 0.91 0.015 258;
+    --ring: 0.52 0.22 258;
+    --chart-1: 0.646 0.222 41.116;
+    --chart-2: 0.6 0.118 184.704;
+    --chart-3: 0.398 0.07 227.392;
+    --chart-4: 0.828 0.189 84.429;
+    --chart-5: 0.769 0.188 70.08;
+    --sidebar: 0.985 0 0;
+    --sidebar-foreground: 0.145 0 0;
+    --sidebar-primary: 0.52 0.22 258;
+    --sidebar-primary-foreground: 0.985 0 0;
+    --sidebar-accent: 0.94 0.02 255;
+    --sidebar-accent-foreground: 0.3 0.06 258;
+    --sidebar-border: 0.91 0.015 258;
+    --sidebar-ring: 0.52 0.22 258;
+
+    /* Condition badge colors */
+    --badge-new: 0.65 0.18 145;
+    --badge-like-new: 0.62 0.16 186;
+    --badge-good: 0.72 0.17 80;
+    --badge-fair: 0.68 0.18 45;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer utilities {
+  .badge-new {
+    background-color: oklch(var(--badge-new));
+    color: white;
+  }
+  .badge-like-new {
+    background-color: oklch(var(--badge-like-new));
+    color: white;
+  }
+  .badge-good {
+    background-color: oklch(var(--badge-good));
+    color: white;
+  }
+  .badge-fair {
+    background-color: oklch(var(--badge-fair));
+    color: white;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+}
