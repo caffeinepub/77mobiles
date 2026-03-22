@@ -58,6 +58,24 @@ export const Message = IDL.Record({
   'sender' : IDL.Principal,
   'timestamp' : Time,
 });
+export const PickupBookingStatus = IDL.Variant({
+  'cancelled' : IDL.Null,
+  'pending' : IDL.Null,
+  'completed' : IDL.Null,
+  'confirmed' : IDL.Null,
+});
+export const PickupBooking = IDL.Record({
+  'id' : IDL.Text,
+  'status' : PickupBookingStatus,
+  'date' : IDL.Text,
+  'sellerName' : IDL.Text,
+  'address' : IDL.Text,
+  'timestamp' : Time,
+  'phone' : IDL.Text,
+  'quotedPrice' : IDL.Nat,
+  'timeSlot' : IDL.Text,
+  'deviceModel' : IDL.Text,
+});
 export const UserProfile = IDL.Record({
   'name' : IDL.Text,
   'isVerified' : IDL.Bool,
@@ -111,6 +129,11 @@ export const idlService = IDL.Service({
       [IDL.Vec(Listing)],
       ['query'],
     ),
+  'getAllListings' : IDL.Func([], [IDL.Vec(Listing)], ['query']),
+  'getAllListingsByPrice' : IDL.Func([], [IDL.Vec(Listing)], ['query']),
+  'getAllMessages' : IDL.Func([], [IDL.Vec(Message)], ['query']),
+  'getAllPickupBookings' : IDL.Func([], [IDL.Vec(PickupBooking)], ['query']),
+  'getAllUserProfiles' : IDL.Func([], [IDL.Vec(UserProfile)], ['query']),
   'getCallerMessagesWithUser' : IDL.Func(
       [IDL.Principal],
       [IDL.Vec(Message)],
@@ -121,6 +144,26 @@ export const idlService = IDL.Service({
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getListingById' : IDL.Func([IDL.Text], [IDL.Opt(Listing)], ['query']),
   'getMessagesForListing' : IDL.Func([IDL.Text], [IDL.Vec(Message)], ['query']),
+  'getPickupBooking' : IDL.Func(
+      [IDL.Text],
+      [IDL.Opt(PickupBooking)],
+      ['query'],
+    ),
+  'getPickupsByDate' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(PickupBooking)],
+      ['query'],
+    ),
+  'getPickupsByStatus' : IDL.Func(
+      [PickupBookingStatus],
+      [IDL.Vec(PickupBooking)],
+      ['query'],
+    ),
+  'getPickupsByTimeSlot' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(PickupBooking)],
+      ['query'],
+    ),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
@@ -130,6 +173,8 @@ export const idlService = IDL.Service({
   'postMessage' : IDL.Func([IDL.Text, IDL.Principal, IDL.Text], [IDL.Text], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'searchListings' : IDL.Func([IDL.Text], [IDL.Vec(Listing)], ['query']),
+  'submitPickupBooking' : IDL.Func([PickupBooking], [IDL.Text], []),
+  'updateBookingStatus' : IDL.Func([IDL.Text, PickupBookingStatus], [], []),
 });
 
 export const idlInitArgs = [];
@@ -185,6 +230,24 @@ export const idlFactory = ({ IDL }) => {
     'sender' : IDL.Principal,
     'timestamp' : Time,
   });
+  const PickupBookingStatus = IDL.Variant({
+    'cancelled' : IDL.Null,
+    'pending' : IDL.Null,
+    'completed' : IDL.Null,
+    'confirmed' : IDL.Null,
+  });
+  const PickupBooking = IDL.Record({
+    'id' : IDL.Text,
+    'status' : PickupBookingStatus,
+    'date' : IDL.Text,
+    'sellerName' : IDL.Text,
+    'address' : IDL.Text,
+    'timestamp' : Time,
+    'phone' : IDL.Text,
+    'quotedPrice' : IDL.Nat,
+    'timeSlot' : IDL.Text,
+    'deviceModel' : IDL.Text,
+  });
   const UserProfile = IDL.Record({
     'name' : IDL.Text,
     'isVerified' : IDL.Bool,
@@ -238,6 +301,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(Listing)],
         ['query'],
       ),
+    'getAllListings' : IDL.Func([], [IDL.Vec(Listing)], ['query']),
+    'getAllListingsByPrice' : IDL.Func([], [IDL.Vec(Listing)], ['query']),
+    'getAllMessages' : IDL.Func([], [IDL.Vec(Message)], ['query']),
+    'getAllPickupBookings' : IDL.Func([], [IDL.Vec(PickupBooking)], ['query']),
+    'getAllUserProfiles' : IDL.Func([], [IDL.Vec(UserProfile)], ['query']),
     'getCallerMessagesWithUser' : IDL.Func(
         [IDL.Principal],
         [IDL.Vec(Message)],
@@ -250,6 +318,26 @@ export const idlFactory = ({ IDL }) => {
     'getMessagesForListing' : IDL.Func(
         [IDL.Text],
         [IDL.Vec(Message)],
+        ['query'],
+      ),
+    'getPickupBooking' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(PickupBooking)],
+        ['query'],
+      ),
+    'getPickupsByDate' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(PickupBooking)],
+        ['query'],
+      ),
+    'getPickupsByStatus' : IDL.Func(
+        [PickupBookingStatus],
+        [IDL.Vec(PickupBooking)],
+        ['query'],
+      ),
+    'getPickupsByTimeSlot' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(PickupBooking)],
         ['query'],
       ),
     'getUserProfile' : IDL.Func(
@@ -265,6 +353,8 @@ export const idlFactory = ({ IDL }) => {
       ),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'searchListings' : IDL.Func([IDL.Text], [IDL.Vec(Listing)], ['query']),
+    'submitPickupBooking' : IDL.Func([PickupBooking], [IDL.Text], []),
+    'updateBookingStatus' : IDL.Func([IDL.Text, PickupBookingStatus], [], []),
   });
 };
 

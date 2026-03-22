@@ -1,6 +1,8 @@
 import type { Listing } from "@/backend";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -14,13 +16,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
-  ImagePlus,
+  Info,
   Loader2,
   MapPin,
+  Star,
   Upload,
+  Video,
   X,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import ModelCombobox from "../components/ModelCombobox";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
@@ -31,11 +35,6 @@ import {
   useCreateListing,
 } from "../hooks/useQueries";
 import { encodeGeoLocation, reverseGeocode } from "../utils/geo";
-
-interface ImagePreview {
-  file: File;
-  previewUrl: string;
-}
 
 export default function PostAdPage() {
   const navigate = useNavigate();
@@ -51,13 +50,43 @@ export default function PostAdPage() {
   const [price, setPrice] = useState("");
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
-  const [images, setImages] = useState<ImagePreview[]>([]);
+  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [isFeatured, setIsFeatured] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [showLocationHelp, setShowLocationHelp] = useState(false);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const locationInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+    };
+  }, [videoPreviewUrl]);
+
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+    if (file) {
+      setVideoFile(file);
+      setVideoPreviewUrl(URL.createObjectURL(file));
+    } else {
+      setVideoFile(null);
+      setVideoPreviewUrl(null);
+    }
+    if (videoInputRef.current) videoInputRef.current.value = "";
+  };
+
+  const removeVideo = () => {
+    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+    setVideoFile(null);
+    setVideoPreviewUrl(null);
+  };
 
   const handleModelChange = (m: string) => {
     setModel(m);
-    // Auto-suggest title only if user hasn't typed anything yet
     setTitle((prev) => (prev ? prev : m));
   };
 
@@ -67,6 +96,7 @@ export default function PostAdPage() {
       return;
     }
     setDetectingLocation(true);
+    setLocationError(null);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
@@ -77,6 +107,8 @@ export default function PostAdPage() {
           const { city, countryName } = await reverseGeocode(lat, lon);
           const label = countryName ? `${city}, ${countryName}` : city;
           setLocation(encodeGeoLocation(lat, lon, label));
+          setLocationError(null);
+          setShowLocationHelp(false);
           toast.success(`Location set to ${label}`);
         } catch {
           toast.error("Could not determine city name. Please enter manually.");
@@ -87,32 +119,14 @@ export default function PostAdPage() {
       (err) => {
         setDetectingLocation(false);
         if (err.code === err.PERMISSION_DENIED) {
-          toast.error(
-            "Location access denied. Please allow it in browser settings.",
-          );
+          setLocationError("Location access is blocked by your browser.");
+          setShowLocationHelp(true);
         } else {
           toast.error("Could not get your location.");
         }
       },
       { timeout: 10000 },
     );
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    const newPreviews: ImagePreview[] = files.map((file) => ({
-      file,
-      previewUrl: URL.createObjectURL(file),
-    }));
-    setImages((prev) => [...prev, ...newPreviews].slice(0, 6));
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const removeImage = (index: number) => {
-    setImages((prev) => {
-      URL.revokeObjectURL(prev[index].previewUrl);
-      return prev.filter((_, i) => i !== index);
-    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -122,12 +136,12 @@ export default function PostAdPage() {
       return;
     }
     if (
-      !title ||
+      !title.trim() ||
       !category ||
       !condition ||
       !price ||
-      !location ||
-      !description
+      !location.trim() ||
+      !description.trim()
     ) {
       toast.error("Please fill in all required fields");
       return;
@@ -138,36 +152,45 @@ export default function PostAdPage() {
       return;
     }
 
-    try {
-      const externalBlobs = await Promise.all(
-        images.map(async (img) => {
-          const buffer = await img.file.arrayBuffer();
-          return ExternalBlob.fromBytes(new Uint8Array(buffer));
-        }),
-      );
-
-      const modelPrefix = model ? `[Model: ${model}]\n` : "";
-
-      const listing: Listing = {
-        id: "",
-        title: title.trim(),
-        description: `${modelPrefix}${description.trim()}`,
-        seller: identity!.getPrincipal() as any,
-        timestamp: BigInt(Date.now()) * BigInt(1_000_000),
-        category: category as ListingCategory,
-        price: BigInt(priceNum),
-        location: location.trim(),
-        condition: condition as ListingCondition,
-        images: externalBlobs,
-      };
-
-      const newId = await createListing(listing);
-      for (const img of images) {
-        URL.revokeObjectURL(img.previewUrl);
+    // Build video blobs — skip gracefully if upload/encoding fails
+    let videoBlobs: ExternalBlob[] = [];
+    if (videoFile) {
+      try {
+        const buffer = await videoFile.arrayBuffer();
+        videoBlobs = [ExternalBlob.fromBytes(new Uint8Array(buffer))];
+      } catch {
+        // video upload failed — proceed without it
+        toast("Video could not be processed — ad will be posted without it.");
       }
+    }
+
+    const modelPrefix = model ? `[Model: ${model}]\n` : "";
+    const featuredPrefix = isFeatured ? "[Featured]\n" : "";
+    const whatsappPrefix = whatsappNumber.trim()
+      ? `[WhatsApp: ${whatsappNumber.trim()}]\n`
+      : "";
+
+    const listing: Listing = {
+      id: "",
+      title: title.trim(),
+      description: `${featuredPrefix}${modelPrefix}${whatsappPrefix}${description.trim()}`,
+      seller: identity!.getPrincipal() as any,
+      timestamp: BigInt(Date.now()) * BigInt(1_000_000),
+      category: category as ListingCategory,
+      price: BigInt(priceNum),
+      location: location.trim(),
+      condition: condition as ListingCondition,
+      images: videoBlobs,
+    };
+
+    try {
+      const newId = await createListing(listing);
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
       toast.success("Ad posted successfully! 🎉");
       navigate({ to: "/listing/$listingId", params: { listingId: newId } });
-    } catch {
+    } catch (err) {
+      console.error("createListing failed:", err);
+      navigate({ to: "/" });
       toast.error("Failed to post ad. Please try again.");
     }
   };
@@ -333,6 +356,7 @@ export default function PostAdPage() {
             </Label>
             <div className="flex gap-1.5">
               <Input
+                ref={locationInputRef}
                 id="location"
                 placeholder="e.g. Mumbai, Maharashtra"
                 value={locationDisplay}
@@ -360,6 +384,80 @@ export default function PostAdPage() {
           </div>
         </div>
 
+        {/* Location Help Panel */}
+        {showLocationHelp && locationError && (
+          <div
+            className="rounded-xl border border-primary/30 bg-primary/5 p-4 relative"
+            style={{ boxShadow: "0 0 12px oklch(0.72 0.2 220 / 0.1)" }}
+            data-ocid="post.panel"
+          >
+            <button
+              type="button"
+              onClick={() => setShowLocationHelp(false)}
+              className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Dismiss"
+              data-ocid="post.close_button"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="flex items-start gap-2 mb-3">
+              <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <p className="text-sm font-medium text-foreground">
+                Location access is blocked
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground mb-2 ml-6">
+              To enable location access:
+            </p>
+            <ul className="text-xs text-muted-foreground space-y-1 ml-6 mb-4">
+              <li>
+                <span className="text-foreground font-medium">
+                  Chrome/Edge:
+                </span>{" "}
+                Click the lock icon in the address bar → Site settings →
+                Location → Allow
+              </li>
+              <li>
+                <span className="text-foreground font-medium">Safari:</span>{" "}
+                Settings → Safari → Location → Allow
+              </li>
+              <li>
+                <span className="text-foreground font-medium">Firefox:</span>{" "}
+                Click the lock icon → Clear permissions → Reload
+              </li>
+            </ul>
+            <div className="flex gap-2 ml-6">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleDetectLocation}
+                disabled={detectingLocation}
+                className="text-xs border-primary/40 hover:bg-primary/10 hover:border-primary"
+                data-ocid="post.secondary_button"
+              >
+                {detectingLocation ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                ) : null}
+                Try Again
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setShowLocationHelp(false);
+                  locationInputRef.current?.focus();
+                }}
+                className="text-xs hover:text-primary"
+                data-ocid="post.secondary_button"
+              >
+                Enter Manually
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Description */}
         <div className="space-y-1.5">
           <Label htmlFor="description">
@@ -379,49 +477,126 @@ export default function PostAdPage() {
           </p>
         </div>
 
-        {/* Images */}
+        {/* WhatsApp Number */}
         <div className="space-y-2">
-          <Label>Photos (up to 6)</Label>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            {images.map((img, i) => (
-              <div
-                key={img.previewUrl}
-                className="relative aspect-square rounded-2xl overflow-hidden border border-border"
+          <Label
+            htmlFor="whatsapp"
+            className="flex items-center gap-2 text-sm font-medium"
+          >
+            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-[#25D366] text-white text-[10px] font-bold">
+              W
+            </span>
+            WhatsApp Number{" "}
+            <span className="text-muted-foreground font-normal">
+              (optional)
+            </span>
+          </Label>
+          <Input
+            id="whatsapp"
+            placeholder="+91 98765 43210"
+            value={whatsappNumber}
+            onChange={(e) => setWhatsappNumber(e.target.value)}
+            className="rounded-xl"
+            data-ocid="post.input"
+          />
+          <p className="text-xs text-muted-foreground">
+            Buyers can reach you directly on WhatsApp
+          </p>
+        </div>
+
+        {/* Featured Listing Toggle */}
+        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="featured"
+              checked={isFeatured}
+              onCheckedChange={(checked) => setIsFeatured(checked === true)}
+              className="mt-0.5"
+              data-ocid="post.checkbox"
+            />
+            <div className="flex-1">
+              <Label
+                htmlFor="featured"
+                className="flex items-center gap-2 cursor-pointer font-semibold text-sm"
               >
-                <img
-                  src={img.previewUrl}
-                  alt="Preview"
-                  className="w-full h-full object-cover"
-                />
+                <Star className="h-4 w-4 text-amber-500" />
+                Feature my listing — ₹100
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Featured listings appear at the top of search results for 7 days
+              </p>
+            </div>
+          </div>
+          {isFeatured && (
+            <Badge
+              variant="secondary"
+              className="ml-7 bg-amber-50 text-amber-700 border border-amber-200 text-xs"
+            >
+              ₹100 will be collected at our office or via UPI before activation
+            </Badge>
+          )}
+        </div>
+
+        {/* 360° Video Upload — optional */}
+        <div className="space-y-2">
+          <Label>
+            360° Device Video{" "}
+            <span className="text-muted-foreground font-normal">
+              (optional)
+            </span>
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Upload a complete 360° walkthrough video of your device
+          </p>
+          {!videoFile ? (
+            <button
+              type="button"
+              onClick={() => videoInputRef.current?.click()}
+              className="w-full flex flex-col items-center justify-center gap-2 py-8 rounded-2xl border-2 border-dashed border-border/60 hover:border-primary/50 bg-muted/50 hover:bg-primary/5 transition-colors text-muted-foreground hover:text-primary"
+              data-ocid="post.upload_button"
+            >
+              <Video className="h-8 w-8" />
+              <span className="text-sm font-medium">Upload 360° Video</span>
+              <span className="text-xs opacity-70">
+                Click to select a video file
+              </span>
+            </button>
+          ) : (
+            <div className="space-y-2">
+              {videoPreviewUrl && (
+                <video
+                  src={videoPreviewUrl}
+                  controls
+                  className="w-full rounded-xl max-h-56 bg-black"
+                >
+                  <track kind="captions" />
+                </video>
+              )}
+              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-muted/60 border border-border">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Video className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="text-sm truncate text-foreground">
+                    {videoFile.name}
+                  </span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => removeImage(i)}
-                  className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white rounded-full p-0.5 transition-colors"
-                  aria-label="Remove image"
+                  onClick={removeVideo}
+                  className="shrink-0 p-1 rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
+                  aria-label="Remove video"
+                  data-ocid="post.close_button"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
-            ))}
-            {images.length < 6 && (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="aspect-square rounded-2xl border-2 border-dashed border-border hover:border-primary bg-muted/50 hover:bg-muted transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-primary"
-                data-ocid="post.upload_button"
-              >
-                <ImagePlus className="h-6 w-6" />
-                <span className="text-xs font-medium">Add Photo</span>
-              </button>
-            )}
-          </div>
+            </div>
+          )}
           <input
-            ref={fileInputRef}
+            ref={videoInputRef}
             type="file"
-            accept="image/*"
-            multiple
+            accept="video/*"
             className="hidden"
-            onChange={handleFileChange}
+            onChange={handleVideoChange}
           />
         </div>
 
@@ -434,7 +609,7 @@ export default function PostAdPage() {
           </AlertDescription>
         </Alert>
 
-        {/* Error */}
+        {/* Auth error */}
         {!isAuthenticated && (
           <Alert variant="destructive" data-ocid="post.error_state">
             <AlertCircle className="h-4 w-4" />
@@ -445,7 +620,7 @@ export default function PostAdPage() {
         <Button
           type="submit"
           size="lg"
-          className="w-full font-semibold"
+          className="w-full font-semibold shadow-glow-sm hover:shadow-glow-primary transition-all duration-300"
           disabled={isPending}
           data-ocid="post.submit_button"
         >
@@ -457,6 +632,20 @@ export default function PostAdPage() {
             "Post Ad for Free"
           )}
         </Button>
+
+        {/* Beadaholique Notice */}
+        <p className="text-xs text-muted-foreground text-center pb-2">
+          Go to{" "}
+          <a
+            href="https://www.beadaholique.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline"
+          >
+            Beadaholique.com
+          </a>{" "}
+          for all of your beading supply needs!
+        </p>
       </form>
     </div>
   );

@@ -1,18 +1,16 @@
 import Principal "mo:core/Principal";
 import Time "mo:core/Time";
 import Iter "mo:core/Iter";
-import Order "mo:core/Order";
-import Int "mo:core/Int";
 import Text "mo:core/Text";
 import List "mo:core/List";
+import Order "mo:core/Order";
+import Int "mo:core/Int";
 import Runtime "mo:core/Runtime";
 import Map "mo:core/Map";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
-
-
 
 actor {
   let accessControlState = AccessControl.initState();
@@ -74,6 +72,39 @@ actor {
     };
   };
 
+  public type PickupBookingStatus = {
+    #pending;
+    #confirmed;
+    #completed;
+    #cancelled;
+  };
+
+  public type PickupBooking = {
+    id : Text;
+    sellerName : Text;
+    phone : Text;
+    address : Text;
+    date : Text;
+    timeSlot : Text;
+    deviceModel : Text;
+    quotedPrice : Nat;
+    status : PickupBookingStatus;
+    timestamp : Time.Time;
+  };
+
+  module PickupBooking {
+    public func compareByTimestamp(booking1 : PickupBooking, booking2 : PickupBooking) : Order.Order {
+      Int.compare(booking2.timestamp, booking1.timestamp);
+    };
+    public func compareByPrice(booking1 : PickupBooking, booking2 : PickupBooking) : Order.Order {
+      Int.compare(booking1.quotedPrice, booking2.quotedPrice);
+    };
+  };
+
+  func generateId(prefix : Text, counter : Nat) : Text {
+    prefix # "_" # counter.toText();
+  };
+
   public type UserProfile = {
     name : Text;
     phone : Text;
@@ -89,16 +120,18 @@ actor {
 
   var nextListingId = 1;
   var nextMessageId = 1;
+  var nextBookingId = 1;
   let listings = Map.empty<Text, Listing>();
   let messages = Map.empty<Text, Message>();
   let userProfiles = Map.empty<Principal, UserProfile>();
+  let pickupBookings = Map.empty<Text, PickupBooking>();
 
   public shared ({ caller }) func createListing(listing : Listing) : async Text {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can create listings");
     };
     nextListingId += 1;
-    let id = "listing_" # nextListingId.toText();
+    let id = generateId("listing", nextListingId);
     let newListing : Listing = {
       listing with
       id;
@@ -146,6 +179,14 @@ actor {
     listings.get(listingId);
   };
 
+  public query ({ caller }) func getAllListings() : async [Listing] {
+    listings.values().toArray().sort();
+  };
+
+  public query ({ caller }) func getAllListingsByPrice() : async [Listing] {
+    listings.values().toArray().sort(Listing.compareByPrice);
+  };
+
   public shared ({ caller }) func deleteListing(listingId : Text) : async () {
     switch (listings.get(listingId)) {
       case (null) { Runtime.trap("Listing not found") };
@@ -166,7 +207,7 @@ actor {
       case (null) { Runtime.trap("Listing not found") };
       case (_) {
         nextMessageId += 1;
-        let messageId = "msg_" # nextMessageId.toText();
+        let messageId = generateId("msg", nextMessageId);
         let newMessage : Message = {
           id = messageId;
           listingId;
@@ -237,5 +278,85 @@ actor {
 
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
     userProfiles.get(user);
+  };
+
+  public query ({ caller }) func getAllUserProfiles() : async [UserProfile] {
+    userProfiles.values().toArray().sort();
+  };
+
+  public query ({ caller }) func getAllMessages() : async [Message] {
+    messages.values().toArray().sort(Message.compareByTimestamp);
+  };
+
+  public shared ({ caller }) func submitPickupBooking(booking : PickupBooking) : async Text {
+    nextBookingId += 1;
+    let id = generateId("booking", nextBookingId);
+    let newBooking : PickupBooking = {
+      booking with
+      id;
+      deviceModel = booking.deviceModel;
+      quotedPrice = booking.quotedPrice;
+      status = #pending;
+      timestamp = Time.now();
+    };
+    pickupBookings.add(id, newBooking);
+    id;
+  };
+
+  public query ({ caller }) func getAllPickupBookings() : async [PickupBooking] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can view all pickup bookings");
+    };
+    pickupBookings.values().toArray().sort(PickupBooking.compareByTimestamp);
+  };
+
+  public shared ({ caller }) func updateBookingStatus(bookingId : Text, newStatus : PickupBookingStatus) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update booking status");
+    };
+    switch (pickupBookings.get(bookingId)) {
+      case (null) { Runtime.trap("Booking not found") };
+      case (?booking) {
+        let updatedBooking : PickupBooking = {
+          booking with
+          status = newStatus;
+        };
+        pickupBookings.add(bookingId, updatedBooking);
+      };
+    };
+  };
+
+  public query ({ caller }) func getPickupBooking(bookingId : Text) : async ?PickupBooking {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can view pickup booking details");
+    };
+    pickupBookings.get(bookingId);
+  };
+
+  public query ({ caller }) func getPickupsByDate(date : Text) : async [PickupBooking] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can filter pickup bookings");
+    };
+    pickupBookings.values().toArray().filter(
+      func(booking) { booking.date == date }
+    ).sort(PickupBooking.compareByTimestamp);
+  };
+
+  public query ({ caller }) func getPickupsByTimeSlot(timeSlot : Text) : async [PickupBooking] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can filter pickup bookings");
+    };
+    pickupBookings.values().toArray().filter(
+      func(booking) { booking.timeSlot == timeSlot }
+    ).sort(PickupBooking.compareByTimestamp);
+  };
+
+  public query ({ caller }) func getPickupsByStatus(status : PickupBookingStatus) : async [PickupBooking] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can filter pickup bookings");
+    };
+    pickupBookings.values().toArray().filter(
+      func(booking) { booking.status == status }
+    ).sort(PickupBooking.compareByTimestamp);
   };
 };

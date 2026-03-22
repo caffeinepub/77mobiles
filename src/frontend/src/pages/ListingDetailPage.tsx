@@ -344,6 +344,20 @@ function DemoListingDetail({ listingId }: { listingId: string }) {
             Call Seller · +91 98765 43210
           </Button>
         </a>
+        <a
+          href="https://wa.me/919876543210"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full gap-2 text-base rounded-2xl border-[#25D366] text-[#25D366] hover:bg-green-50 mt-2"
+          >
+            <MessageCircle className="h-5 w-5" />
+            WhatsApp Seller
+          </Button>
+        </a>
       </div>
     </div>
   );
@@ -456,7 +470,12 @@ function RealListingDetail({ listingId }: { listingId: string }) {
   // Extract model prefix from description if present
   const modelMatch = listing.description.match(/^\[Model: (.+?)\]\n/);
   const modelLabel = modelMatch ? modelMatch[1] : null;
-  const cleanDescription = listing.description.replace(/^\[Model: .+?\]\n/, "");
+  const whatsappMatch = listing.description.match(/\[WhatsApp: (.+?)\]\n/);
+  const whatsappNumber = whatsappMatch ? whatsappMatch[1] : null;
+  const cleanDescription = listing.description
+    .replace(/^\[Model: .+?\]\n/, "")
+    .replace(/^\[Featured\]\n/, "")
+    .replace(/\[WhatsApp: .+?\]\n/, "");
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
@@ -643,6 +662,23 @@ function RealListingDetail({ listingId }: { listingId: string }) {
                 Call Seller
               </Button>
             </div>
+          )}
+          {whatsappNumber && (
+            <a
+              href={`https://wa.me/${whatsappNumber.replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-ocid="listing.secondary_button"
+            >
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full gap-2 text-base rounded-2xl border-[#25D366] text-[#25D366] hover:bg-green-50 mt-2"
+              >
+                <MessageCircle className="h-5 w-5" />
+                WhatsApp Seller
+              </Button>
+            </a>
           )}
           {isMySelling && (
             <div className="text-center p-3 bg-muted rounded-2xl">

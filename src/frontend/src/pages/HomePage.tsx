@@ -2,7 +2,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link, useSearch } from "@tanstack/react-router";
-import { AlertCircle, PlusCircle } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  BadgeCheck,
+  PlusCircle,
+  Sparkles,
+  Truck,
+  Zap,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import GeoFilterBar from "../components/GeoFilterBar";
@@ -31,6 +39,69 @@ interface GeoFilter {
   lat: number;
   lon: number;
   radiusKm: number;
+}
+
+function SellTo77Section() {
+  const badges = [
+    { icon: Zap, label: "Instant Payment" },
+    { icon: Truck, label: "Free Pickup" },
+    { icon: BadgeCheck, label: "Best Price" },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55 }}
+      className="relative rounded-3xl overflow-hidden mb-6 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 shadow-xl shadow-indigo-300 p-5 sm:p-6 text-center"
+      data-ocid="sell77.panel"
+    >
+      {/* Decorative blobs */}
+      <div className="absolute -top-16 -right-16 h-36 w-36 rounded-full bg-white/20 blur-3xl" />
+      <div className="absolute -bottom-12 -left-12 h-28 w-28 rounded-full bg-violet-300/30 blur-3xl" />
+
+      <div className="relative">
+        {/* Badge */}
+        <span className="inline-flex items-center gap-1.5 bg-white/25 text-white text-[11px] font-semibold px-4 py-1.5 rounded-full mb-3">
+          <Sparkles className="h-3 w-3" /> Instant Buy-Back
+        </span>
+
+        <h2 className="font-display font-bold text-xl sm:text-2xl text-white leading-tight mb-2">
+          Sell Your Device to <span className="text-indigo-200">77mobiles</span>
+          <br />
+          in 30 Mins
+        </h2>
+        <p className="text-white/90 text-sm mb-4">
+          Get an instant price offer — no haggling, no waiting
+        </p>
+
+        <Link to="/instant-buy">
+          <Button
+            type="button"
+            size="sm"
+            className="bg-white text-indigo-700 hover:bg-indigo-50 font-bold rounded-2xl px-6 shadow-lg gap-2"
+            data-ocid="sell77.primary_button"
+          >
+            <Sparkles className="h-4 w-4" />
+            Sell Now
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
+
+        <div className="flex flex-wrap justify-center gap-3 mt-4">
+          {badges.map(({ icon: Icon, label }) => (
+            <div
+              key={label}
+              className="flex items-center gap-2 bg-white/25 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-medium text-white"
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
 export default function HomePage() {
@@ -68,7 +139,6 @@ export default function HomePage() {
     });
   }, [listings, geoFilter]);
 
-  // Filter demo listings by category, search, and geo
   const filteredDemos = useMemo(() => {
     let demos: DemoListing[] = DEMO_LISTINGS;
     if (searchQuery) {
@@ -110,33 +180,41 @@ export default function HomePage() {
 
   return (
     <div className="container mx-auto px-4 py-6">
+      {/* Sell to 77mobiles Banner */}
+      <SellTo77Section />
+
       {/* Hero Bento Card */}
       <motion.div
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative rounded-3xl overflow-hidden mb-6 bg-gradient-to-br from-primary via-primary to-primary/80 p-7 text-primary-foreground shadow-bento"
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="relative rounded-3xl overflow-hidden mb-6 bg-gradient-to-br from-[oklch(0.92_0.04_220)] via-[oklch(0.95_0.02_240)] to-[oklch(0.96_0.015_258)] p-5 border border-primary/20 shadow-sm"
       >
-        {/* Decorative circles (iOS widget aesthetic) */}
-        <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute bottom-0 left-1/3 h-32 w-32 rounded-full bg-white/5 blur-xl" />
+        {/* Decorative soft circles */}
+        <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full bg-primary/8 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-32 w-32 rounded-full bg-primary/5 blur-2xl" />
+
+        {/* Subtle ring in corner */}
+        <div className="absolute top-4 right-4 h-16 w-16 rounded-full border-2 border-primary/20 opacity-60" />
+        <div className="absolute top-6 right-6 h-8 w-8 rounded-full border border-primary/30" />
 
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
           <div>
-            <p className="text-primary-foreground/70 text-xs font-medium uppercase tracking-widest mb-2">
+            <p className="text-primary/70 text-xs font-medium uppercase tracking-widest mb-2 font-mono">
               India's Premier Gadget Marketplace
             </p>
-            <h1 className="font-display font-bold text-3xl sm:text-4xl mb-2 leading-tight">
-              Buy &amp; Sell Gadgets Locally
+            <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 leading-tight text-foreground">
+              Buy &amp; Sell <span className="text-primary">Gadgets</span>{" "}
+              Locally
             </h1>
-            <p className="text-primary-foreground/75 text-sm max-w-sm">
+            <p className="text-muted-foreground text-sm max-w-sm">
               100% free listings · Phones · MacBooks · Watches · Earphones
             </p>
           </div>
           <Link to="/post" className="shrink-0">
             <Button
               size="lg"
-              className="gap-2 font-semibold bg-white text-primary hover:bg-white/90 rounded-2xl shadow-md"
+              className="gap-2 font-semibold bg-primary text-primary-foreground hover:opacity-90 rounded-2xl transition-all duration-300"
               data-ocid="home.primary_button"
             >
               <PlusCircle className="h-5 w-5" />
@@ -161,13 +239,13 @@ export default function HomePage() {
               type="button"
               onClick={() => setCategory(cat.id as CategoryId)}
               data-ocid={`home.${cat.id}.tab`}
-              className={`flex flex-col items-center gap-1.5 px-5 py-3.5 rounded-2xl border transition-all duration-200 shrink-0 min-w-[80px] ${
+              className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl border transition-all duration-200 shrink-0 min-w-[70px] ${
                 category === cat.id
-                  ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
-                  : "bg-card border-border hover:border-primary/40 hover:bg-muted text-foreground"
+                  ? "bg-primary/10 border-primary/50 text-primary scale-105 shadow-sm"
+                  : "bg-card border-border hover:border-primary/30 text-muted-foreground hover:text-foreground"
               }`}
             >
-              <span className="text-2xl">{cat.emoji}</span>
+              <span className="text-xl">{cat.emoji}</span>
               <span className="text-xs font-medium">{cat.label}</span>
             </button>
           ))}
@@ -191,7 +269,7 @@ export default function HomePage() {
             variant="ghost"
             size="sm"
             onClick={() => setSearchQuery("")}
-            className="text-xs"
+            className="text-xs hover:text-primary"
           >
             Clear
           </Button>
@@ -282,7 +360,7 @@ export default function HomePage() {
           </p>
           <Link to="/post">
             <Button
-              className="gap-1.5 rounded-2xl"
+              className="gap-1.5 rounded-2xl transition-all"
               data-ocid="home.secondary_button"
             >
               <PlusCircle className="h-4 w-4" />

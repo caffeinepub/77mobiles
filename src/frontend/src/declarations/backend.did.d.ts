@@ -39,6 +39,22 @@ export interface Message {
   'sender' : Principal,
   'timestamp' : Time,
 }
+export interface PickupBooking {
+  'id' : string,
+  'status' : PickupBookingStatus,
+  'date' : string,
+  'sellerName' : string,
+  'address' : string,
+  'timestamp' : Time,
+  'phone' : string,
+  'quotedPrice' : bigint,
+  'timeSlot' : string,
+  'deviceModel' : string,
+}
+export type PickupBookingStatus = { 'cancelled' : null } |
+  { 'pending' : null } |
+  { 'completed' : null } |
+  { 'confirmed' : null };
 export type Time = bigint;
 export interface UserProfile {
   'name' : string,
@@ -83,17 +99,31 @@ export interface _SERVICE {
   'filterByCategory' : ActorMethod<[ListingCategory], Array<Listing>>,
   'filterByCondition' : ActorMethod<[ListingCondition], Array<Listing>>,
   'filterByPriceRange' : ActorMethod<[bigint, bigint], Array<Listing>>,
+  'getAllListings' : ActorMethod<[], Array<Listing>>,
+  'getAllListingsByPrice' : ActorMethod<[], Array<Listing>>,
+  'getAllMessages' : ActorMethod<[], Array<Message>>,
+  'getAllPickupBookings' : ActorMethod<[], Array<PickupBooking>>,
+  'getAllUserProfiles' : ActorMethod<[], Array<UserProfile>>,
   'getCallerMessagesWithUser' : ActorMethod<[Principal], Array<Message>>,
   'getCallerRelatedListings' : ActorMethod<[], Array<Listing>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getListingById' : ActorMethod<[string], [] | [Listing]>,
   'getMessagesForListing' : ActorMethod<[string], Array<Message>>,
+  'getPickupBooking' : ActorMethod<[string], [] | [PickupBooking]>,
+  'getPickupsByDate' : ActorMethod<[string], Array<PickupBooking>>,
+  'getPickupsByStatus' : ActorMethod<
+    [PickupBookingStatus],
+    Array<PickupBooking>
+  >,
+  'getPickupsByTimeSlot' : ActorMethod<[string], Array<PickupBooking>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'postMessage' : ActorMethod<[string, Principal, string], string>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'searchListings' : ActorMethod<[string], Array<Listing>>,
+  'submitPickupBooking' : ActorMethod<[PickupBooking], string>,
+  'updateBookingStatus' : ActorMethod<[string, PickupBookingStatus], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

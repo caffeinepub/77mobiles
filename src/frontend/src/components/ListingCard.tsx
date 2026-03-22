@@ -37,7 +37,7 @@ export default function ListingCard({
         className="block h-full"
       >
         <article
-          className={`bg-card rounded-3xl border border-border overflow-hidden shadow-card card-hover cursor-pointer h-full flex flex-col ${
+          className={`bg-card rounded-3xl border border-border overflow-hidden shadow-sm hover:border-primary/40 hover:shadow-md card-hover cursor-pointer h-full flex flex-col transition-all duration-300 ${
             featured ? "md:flex-row" : ""
           }`}
         >
@@ -84,7 +84,9 @@ export default function ListingCard({
               {listing.title}
             </h3>
             <p
-              className={`font-bold text-primary mt-0.5 ${featured ? "text-2xl" : "text-xl"}`}
+              className={`font-bold text-primary mt-0.5 ${
+                featured ? "text-2xl" : "text-xl"
+              }`}
             >
               {formatPrice(listing.price)}
             </p>
@@ -124,7 +126,7 @@ function CategoryPlaceholder({
 
 export function ListingCardSkeleton() {
   return (
-    <div className="bg-card rounded-3xl border border-border overflow-hidden shadow-card">
+    <div className="bg-card rounded-3xl border border-border overflow-hidden shadow-sm">
       <Skeleton className="aspect-[4/3] w-full" />
       <div className="p-4 space-y-2">
         <Skeleton className="h-4 w-3/4" />

@@ -1,11 +1,11 @@
 import { ExternalBlob, ListingCategory, ListingCondition } from "@/backend";
-import type { Listing, UserProfile } from "@/backend";
+import type { Listing, PickupBooking, UserProfile, UserRole } from "@/backend";
 import type { Principal } from "@icp-sdk/core/principal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActor } from "./useActor";
 
 export { ListingCategory, ListingCondition, ExternalBlob };
-export type { Listing, UserProfile };
+export type { Listing, PickupBooking, UserProfile, UserRole };
 
 export function useListings(category: ListingCategory | "all", search = "") {
   const { actor, isFetching } = useActor();
@@ -149,7 +149,6 @@ export function useGetSellerProfile(principalStr: string) {
     queryKey: ["sellerProfile", principalStr],
     queryFn: async () => {
       if (!actor || !principalStr) return null;
-      // Dynamically import Principal to convert string -> Principal
       const { Principal } = await import("@icp-sdk/core/principal");
       try {
         return actor.getUserProfile(Principal.fromText(principalStr));
@@ -159,5 +158,65 @@ export function useGetSellerProfile(principalStr: string) {
     },
     enabled: !!actor && !isFetching && !!principalStr,
     staleTime: 60_000,
+  });
+}
+
+export function useGetCallerUserRole() {
+  const { actor, isFetching } = useActor();
+  return useQuery<UserRole>({
+    queryKey: ["callerUserRole"],
+    queryFn: async () => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.getCallerUserRole();
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 60_000,
+  });
+}
+
+export function useGetAllPickupBookings() {
+  const { actor, isFetching } = useActor();
+  return useQuery<PickupBooking[]>({
+    queryKey: ["allPickupBookings"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllPickupBookings();
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useUpdateBookingStatus() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      bookingId,
+      newStatus,
+    }: {
+      bookingId: string;
+      newStatus: import("@/backend").PickupBookingStatus;
+    }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.updateBookingStatus(bookingId, newStatus);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allPickupBookings"] });
+    },
+  });
+}
+
+export function useSubmitPickupBooking() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (booking: PickupBooking) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.submitPickupBooking(booking);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allPickupBookings"] });
+    },
   });
 }

@@ -11,7 +11,10 @@ import Navbar from "./components/Navbar";
 import ProfileSetupModal from "./components/ProfileSetupModal";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import { useGetCallerUserProfile } from "./hooks/useQueries";
+import AdminPage from "./pages/AdminPage";
+import DealerSignupPage from "./pages/DealerSignupPage";
 import HomePage from "./pages/HomePage";
+import InstantBuyPage from "./pages/InstantBuyPage";
 import ListingDetailPage from "./pages/ListingDetailPage";
 import MessagesPage from "./pages/MessagesPage";
 import PostAdPage from "./pages/PostAdPage";
@@ -62,6 +65,21 @@ const messagesRoute = createRoute({
   path: "/messages",
   component: MessagesPage,
 });
+const instantBuyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/instant-buy",
+  component: InstantBuyPage,
+});
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin",
+  component: AdminPage,
+});
+const b2bRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/b2b",
+  component: DealerSignupPage,
+});
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -69,6 +87,9 @@ const routeTree = rootRoute.addChildren([
   postRoute,
   profileRoute,
   messagesRoute,
+  instantBuyRoute,
+  adminRoute,
+  b2bRoute,
 ]);
 
 const router = createRouter({ routeTree });
