@@ -1,20 +1,15 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link, useSearch } from "@tanstack/react-router";
-import {
-  AlertCircle,
-  Headphones,
-  Laptop,
-  LayoutGrid,
-  PlusCircle,
-  Smartphone,
-  Watch,
-} from "lucide-react";
+import { AlertCircle, PlusCircle } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import GeoFilterBar from "../components/GeoFilterBar";
 import ListingCard, { ListingCardSkeleton } from "../components/ListingCard";
+import { DEMO_LISTINGS, type DemoListing } from "../data/demoListings";
 import { ListingCategory, useListings } from "../hooks/useQueries";
+import type { Listing } from "../hooks/useQueries";
 import { haversine, parseGeoLocation } from "../utils/geo";
 
 const CATEGORIES = [
@@ -73,11 +68,45 @@ export default function HomePage() {
     });
   }, [listings, geoFilter]);
 
+  // Filter demo listings by category, search, and geo
+  const filteredDemos = useMemo(() => {
+    let demos: DemoListing[] = DEMO_LISTINGS;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      demos = demos.filter(
+        (d) =>
+          d.title.toLowerCase().includes(q) ||
+          d.description.toLowerCase().includes(q),
+      );
+    } else if (category !== "all") {
+      demos = demos.filter((d) => d.category === (category as string));
+    }
+    if (geoFilter) {
+      demos = demos.filter((d) => {
+        const parsed = parseGeoLocation(d.location);
+        if (parsed) {
+          return (
+            haversine(geoFilter.lat, geoFilter.lon, parsed.lat, parsed.lon) <=
+            geoFilter.radiusKm
+          );
+        }
+        return true;
+      });
+    }
+    return demos;
+  }, [category, searchQuery, geoFilter]);
+
   const displayListings = filteredListings;
   const geoFilteredCount =
     geoFilter && listings && filteredListings
       ? listings.length - filteredListings.length
       : 0;
+
+  const allItems = useMemo(
+    () => [...(displayListings ?? []), ...filteredDemos],
+    [displayListings, filteredDemos],
+  );
+  const hasItems = !isLoading && allItems.length > 0;
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -156,7 +185,7 @@ export default function HomePage() {
             <span className="font-medium text-foreground">
               &ldquo;{searchQuery}&rdquo;
             </span>
-            {displayListings && ` — ${displayListings.length} found`}
+            {!isLoading && ` — ${allItems.length} found`}
           </p>
           <Button
             variant="ghost"
@@ -173,9 +202,7 @@ export default function HomePage() {
       {geoFilter && !searchQuery && listings && (
         <p className="text-xs text-muted-foreground mb-3">
           Showing{" "}
-          <span className="font-medium text-foreground">
-            {displayListings?.length ?? 0}
-          </span>{" "}
+          <span className="font-medium text-foreground">{allItems.length}</span>{" "}
           listings within{" "}
           <span className="font-medium text-foreground">
             {geoFilter.radiusKm} km
@@ -210,16 +237,30 @@ export default function HomePage() {
             <ListingCardSkeleton key={c} />
           ))}
         </div>
-      ) : displayListings && displayListings.length > 0 ? (
+      ) : hasItems ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-auto">
-          {displayListings.map((listing, i) => (
-            <div
-              key={listing.id}
-              className={`${i === 0 ? "sm:col-span-2 sm:row-span-2" : ""}`}
-            >
-              <ListingCard listing={listing} index={i} featured={i === 0} />
-            </div>
-          ))}
+          {allItems.map((item, i) => {
+            const isDemo = "isDemo" in item && item.isDemo;
+            return (
+              <div
+                key={item.id}
+                className={`relative ${
+                  i === 0 ? "sm:col-span-2 sm:row-span-2" : ""
+                }`}
+              >
+                <ListingCard
+                  listing={item as unknown as Listing}
+                  index={i}
+                  featured={i === 0}
+                />
+                {isDemo && (
+                  <Badge className="absolute top-4 left-4 z-10 bg-amber-500/90 text-white text-[10px] font-semibold pointer-events-none">
+                    Demo
+                  </Badge>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <motion.div

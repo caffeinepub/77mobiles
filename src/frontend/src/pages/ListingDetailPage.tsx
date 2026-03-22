@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  FlaskConical,
   MapPin,
   MessageCircle,
   Send,
@@ -20,6 +21,11 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  DEMO_AUTO_REPLIES,
+  DEMO_LISTINGS,
+  DEMO_SELLER_NAME,
+} from "../data/demoListings";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useGetListing,
@@ -41,8 +47,308 @@ const CATEGORY_LABELS: Record<string, string> = {
   earphones: "Earphones",
 };
 
+// ────────────────────────────────────────────────────────────
+// Demo listing detail — all local state, no backend calls
+// ────────────────────────────────────────────────────────────
+interface DemoMessage {
+  id: string;
+  content: string;
+  fromMe: boolean;
+  timestamp: number;
+}
+
+function DemoListingDetail({ listingId }: { listingId: string }) {
+  const navigate = useNavigate();
+  const listing = DEMO_LISTINGS.find((d) => d.id === listingId);
+  const [messages, setMessages] = useState<DemoMessage[]>([]);
+  const [message, setMessage] = useState("");
+  const [replying, setReplying] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional scroll trigger
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
+
+  if (!listing) {
+    return (
+      <div className="container mx-auto px-4 py-12 max-w-xl text-center">
+        <Alert variant="destructive" data-ocid="listing.error_state">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Demo listing not found.</AlertDescription>
+        </Alert>
+        <Button onClick={() => navigate({ to: "/" })} className="mt-4">
+          Back to Browse
+        </Button>
+      </div>
+    );
+  }
+
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim() || replying) return;
+    const userMsg: DemoMessage = {
+      id: `msg-${Date.now()}`,
+      content: message.trim(),
+      fromMe: true,
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setMessage("");
+    setReplying(true);
+    setTimeout(() => {
+      const reply =
+        DEMO_AUTO_REPLIES[Math.floor(Math.random() * DEMO_AUTO_REPLIES.length)];
+      const sellerMsg: DemoMessage = {
+        id: `msg-${Date.now()}-reply`,
+        content: reply,
+        fromMe: false,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, sellerMsg]);
+      setReplying(false);
+    }, 1000);
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
+      {/* Demo banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center gap-2 mb-5 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-700 text-sm"
+        data-ocid="listing.panel"
+      >
+        <FlaskConical className="h-4 w-4 shrink-0" />
+        <span>
+          This is a <strong>demo listing</strong> for testing purposes. Chat
+          responses are automated.
+        </span>
+      </motion.div>
+
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-6">
+        <Link to="/" className="hover:text-primary transition-colors">
+          Browse
+        </Link>
+        <span>/</span>
+        <span className="text-muted-foreground">
+          {CATEGORY_LABELS[listing.category] ?? listing.category}
+        </span>
+        <span>/</span>
+        <span className="text-foreground line-clamp-1">{listing.title}</span>
+      </nav>
+
+      <div className="grid md:grid-cols-5 gap-8">
+        {/* Image placeholder */}
+        <div className="md:col-span-3 space-y-3">
+          <div className="relative aspect-square bg-muted rounded-3xl overflow-hidden border border-border flex items-center justify-center">
+            <span className="text-[7rem] select-none">{listing.emoji}</span>
+            <Badge className="absolute top-3 left-3 bg-amber-500/90 text-white text-xs">
+              Demo
+            </Badge>
+          </div>
+        </div>
+
+        {/* Details */}
+        <div className="md:col-span-2 space-y-5">
+          <div>
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <h1 className="font-display font-bold text-2xl leading-tight">
+                {listing.title}
+              </h1>
+              <span
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 mt-1 ${conditionClass(listing.condition as any)}`}
+              >
+                {conditionLabel(listing.condition as any)}
+              </span>
+            </div>
+            <p className="text-3xl font-bold text-primary">
+              {formatPriceFull(BigInt(listing.price))}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <MapPin className="h-4 w-4 text-primary" />
+              {listing.location}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4 text-primary" />
+              {formatTimeAgo(listing.timestamp)}
+            </span>
+          </div>
+
+          <Badge variant="secondary" className="text-xs">
+            {CATEGORY_LABELS[listing.category] ?? listing.category}
+          </Badge>
+
+          <Separator />
+
+          {/* Seller */}
+          <div className="flex items-center gap-3 p-3 bg-muted rounded-2xl">
+            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <User className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">Seller</p>
+              <div className="flex items-center gap-1.5">
+                <p className="font-medium text-sm truncate">
+                  {DEMO_SELLER_NAME}
+                </p>
+                <span
+                  className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
+                  title="Identity Verified"
+                >
+                  <CheckCircle2 className="h-3 w-3" />
+                  Verified
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Description */}
+          <div>
+            <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-2">
+              Description
+            </h2>
+            <p className="text-sm leading-relaxed text-foreground whitespace-pre-line">
+              {listing.description}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Embedded Chat */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+        className="mt-8 border border-border rounded-3xl overflow-hidden bg-card shadow-card"
+        data-ocid="listing.panel"
+      >
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted">
+          <MessageCircle className="h-4 w-4 text-primary" />
+          <span className="font-semibold text-sm">Chat with Seller</span>
+          <Badge
+            variant="outline"
+            className="ml-auto text-[10px] text-amber-600 border-amber-300"
+          >
+            Demo Mode
+          </Badge>
+        </div>
+
+        {/* Messages */}
+        <div className="h-72 overflow-y-auto p-4 space-y-3">
+          {messages.length === 0 && (
+            <p className="text-center text-sm text-muted-foreground pt-8">
+              Send a message to test the chat! The seller will auto-reply.
+            </p>
+          )}
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex ${msg.fromMe ? "justify-end" : "justify-start"}`}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.15 }}
+                className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${
+                  msg.fromMe
+                    ? "bg-primary text-primary-foreground rounded-br-sm"
+                    : "bg-muted text-foreground rounded-bl-sm"
+                }`}
+              >
+                {!msg.fromMe && (
+                  <p className="text-[10px] font-semibold text-muted-foreground mb-1">
+                    {DEMO_SELLER_NAME}
+                  </p>
+                )}
+                {msg.content}
+                <p
+                  className={`text-[10px] mt-1 ${
+                    msg.fromMe
+                      ? "text-primary-foreground/60"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {new Date(msg.timestamp).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </motion.div>
+            </div>
+          ))}
+          {replying && (
+            <div className="flex justify-start">
+              <div className="bg-muted rounded-2xl rounded-bl-sm px-3.5 py-2 text-sm text-muted-foreground">
+                <span className="inline-flex gap-1">
+                  <span className="animate-bounce">·</span>
+                  <span className="animate-bounce [animation-delay:0.15s]">
+                    ·
+                  </span>
+                  <span className="animate-bounce [animation-delay:0.3s]">
+                    ·
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <form
+          onSubmit={handleSend}
+          className="p-3 border-t border-border flex gap-2"
+        >
+          <Textarea
+            placeholder="Type your message..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            className="min-h-0 h-10 resize-none py-2"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend(e);
+              }
+            }}
+            data-ocid="listing.textarea"
+          />
+          <Button
+            type="submit"
+            size="icon"
+            disabled={!message.trim() || replying}
+            className="shrink-0 h-10 w-10"
+            data-ocid="listing.submit_button"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Real listing detail
+// ────────────────────────────────────────────────────────────
 export default function ListingDetailPage() {
   const { listingId } = useParams({ strict: false }) as { listingId: string };
+
+  // Render demo branch without any backend calls
+  if (listingId?.startsWith("demo-")) {
+    return <DemoListingDetail listingId={listingId} />;
+  }
+
+  return <RealListingDetail listingId={listingId} />;
+}
+
+function RealListingDetail({ listingId }: { listingId: string }) {
   const navigate = useNavigate();
   const { identity, login } = useInternetIdentity();
   const isAuthenticated = !!identity;
