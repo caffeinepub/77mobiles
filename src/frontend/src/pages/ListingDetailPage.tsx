@@ -15,6 +15,7 @@ import {
   MapPin,
   MessageCircle,
   Phone,
+  Play,
   Send,
   User,
   X,
@@ -47,6 +48,79 @@ const CATEGORY_LABELS: Record<string, string> = {
   watches: "Watches",
   earphones: "Earphones",
 };
+
+// ────────────────────────────────────────────────────────────
+// MediaItem: renders image, falls back to video on load error
+// ────────────────────────────────────────────────────────────
+function MediaItem({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
+  const [isVideo, setIsVideo] = useState(false);
+
+  if (isVideo) {
+    return (
+      // biome-ignore lint/a11y/useMediaCaption: user-generated video content without captions
+      <video
+        src={src}
+        controls
+        className={className}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          background: "#000",
+        }}
+      />
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onError={() => setIsVideo(true)}
+    />
+  );
+}
+
+// Thumbnail version: shows play icon overlay for videos
+function MediaThumbnail({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
+  const [isVideo, setIsVideo] = useState(false);
+
+  if (isVideo) {
+    return (
+      <div
+        className={`${className} bg-black flex items-center justify-center relative`}
+      >
+        <Play className="h-5 w-5 text-white opacity-80" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onError={() => setIsVideo(true)}
+    />
+  );
+}
 
 // ────────────────────────────────────────────────────────────
 // Demo listing detail — all local state, no backend calls
@@ -493,11 +567,11 @@ function RealListingDetail({ listingId }: { listingId: string }) {
       </nav>
 
       <div className="grid md:grid-cols-5 gap-8">
-        {/* Images */}
+        {/* Images / Videos */}
         <div className="md:col-span-3 space-y-3">
           <div className="relative aspect-square bg-muted rounded-3xl overflow-hidden border border-border">
             {images.length > 0 ? (
-              <img
+              <MediaItem
                 src={images[activeImage]}
                 alt={listing.title}
                 className="w-full h-full object-cover"
@@ -544,7 +618,7 @@ function RealListingDetail({ listingId }: { listingId: string }) {
                       : "border-transparent hover:border-border"
                   }`}
                 >
-                  <img
+                  <MediaThumbnail
                     src={url}
                     alt={`Thumbnail ${i + 1}`}
                     className="w-full h-full object-cover"
