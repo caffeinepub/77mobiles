@@ -33,6 +33,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
+  BarChart2,
   CheckCircle2,
   ChevronRight,
   Crown,
@@ -126,6 +127,7 @@ function AccountCard({
 function MyAccountSection({ onLogout }: { onLogout: () => void }) {
   const [showEliteModal, setShowEliteModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <>
@@ -169,6 +171,16 @@ function MyAccountSection({ onLogout }: { onLogout: () => void }) {
             subtitle="Packages, orders, invoices & billing"
             onClick={() => toast.info("Orders feature coming soon!")}
             data-ocid="profile.orders.button"
+          />
+          <AccountCard
+            icon={<BarChart2 className="h-5 w-5 text-blue-600" />}
+            iconBg="bg-blue-100"
+            title="Vendor Dashboard (PRO)"
+            subtitle="Manage listings, analytics & inventory"
+            badge="PRO"
+            badgeColor="bg-amber-100 text-amber-700"
+            onClick={() => navigate({ to: "/vendor" })}
+            data-ocid="profile.vendor.button"
           />
           <AccountCard
             icon={<Crown className="h-5 w-5 text-amber-600" />}

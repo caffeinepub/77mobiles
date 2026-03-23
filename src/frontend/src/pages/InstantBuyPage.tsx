@@ -410,11 +410,11 @@ function inr(n: number) {
 // ─── Sub-components ────────────────────────────────────────────────────────
 
 function StepBar({ step }: { step: number }) {
-  const steps = ["Diagnostics", "Quote", "Details"];
+  const steps = ["Brand", "Model", "Diagnostics", "Quote", "Pickup"];
   return (
     <div className="flex items-center gap-0 mb-8" data-ocid="instant_buy.tab">
       {steps.map((label, i) => {
-        const idx = i + 3;
+        const idx = i + 1;
         const active = step === idx;
         const done = step > idx;
         return (
@@ -498,9 +498,19 @@ function YesNoToggle({
 
 // ─── Main Component ────────────────────────────────────────────────────────
 
+const POPULAR_BRANDS = [
+  "Apple",
+  "Samsung Galaxy (Flagship)",
+  "OnePlus",
+  "Google Pixel",
+  "Xiaomi",
+];
+
 export default function InstantBuyPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<3 | 4 | 5>(3);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [selectedBrand, setSelectedBrand] = useState<string>("");
+  const [selectedModel, setSelectedModel] = useState<string>("");
   const [diag, setDiag] = useState<DiagnosticState>({
     powersOn: null,
     makeCalls: null,
@@ -523,8 +533,10 @@ export default function InstantBuyPage() {
   const { mutate: submitBooking, isPending: isSubmitting } =
     useSubmitPickupBooking();
 
-  const DEFAULT_BRAND = "Samsung Galaxy (Flagship)";
-  const quote = step >= 4 ? calculateQuote(DEFAULT_BRAND, diag) : null;
+  const quote =
+    step >= 4
+      ? calculateQuote(selectedBrand || "Samsung Galaxy (Flagship)", diag)
+      : null;
 
   const canAdvanceDiag = () => {
     if (diag.subStep === 0)
@@ -564,7 +576,8 @@ export default function InstantBuyPage() {
         address: pickup.address,
         date: format(pickup.date, "yyyy-MM-dd"),
         timeSlot: pickup.timeSlot,
-        deviceModel: DEFAULT_BRAND,
+        deviceModel:
+          selectedModel || selectedBrand || "Samsung Galaxy (Flagship)",
         quotedPrice: BigInt(quote.final),
         timestamp: 0n,
       },
@@ -590,6 +603,126 @@ export default function InstantBuyPage() {
     <div className="min-h-screen bg-gradient-to-b from-purple-50/60 to-background">
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <AnimatePresence mode="wait">
+          {/* ── Step 1: Brand Selection ───────────────────────────────── */}
+          {step === 1 && (
+            <motion.div
+              key="step1"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.3 }}
+            >
+              <StepBar step={1} />
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <h2 className="font-display font-bold text-2xl mb-1">
+                  Select your brand
+                </h2>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Which brand is your device?
+                </p>
+
+                <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider mb-3">
+                  Popular
+                </p>
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {POPULAR_BRANDS.map((brand) => (
+                    <button
+                      key={brand}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBrand(brand);
+                        setStep(2);
+                      }}
+                      className="flex items-center gap-3 p-3 rounded-xl border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50 transition-all text-left"
+                      data-ocid="instant_buy.primary_button"
+                    >
+                      <div className="h-9 w-9 rounded-full bg-purple-100 flex items-center justify-center text-lg shrink-0">
+                        {brand === "Apple"
+                          ? "🍎"
+                          : brand === "Samsung Galaxy (Flagship)"
+                            ? "📱"
+                            : brand === "OnePlus"
+                              ? "🔴"
+                              : brand === "Google Pixel"
+                                ? "🔍"
+                                : "📲"}
+                      </div>
+                      <span className="text-sm font-semibold leading-tight">
+                        {brand}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  All Brands
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.keys(_BRAND_MODELS)
+                    .filter((b) => !POPULAR_BRANDS.includes(b))
+                    .map((brand) => (
+                      <button
+                        key={brand}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBrand(brand);
+                          setStep(2);
+                        }}
+                        className="flex items-center gap-2 p-2.5 rounded-xl border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-all text-left text-sm font-medium"
+                      >
+                        📱 {brand}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Step 2: Model Selection ────────────────────────────────── */}
+          {step === 2 && (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.3 }}
+            >
+              <StepBar step={2} />
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="flex items-center gap-1 text-purple-600 text-sm font-medium mb-4 hover:underline"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back to brands
+                </button>
+                <h2 className="font-display font-bold text-2xl mb-1">
+                  Select your model
+                </h2>
+                <p className="text-sm text-muted-foreground mb-5">
+                  {selectedBrand} — choose your exact model
+                </p>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                  {(_BRAND_MODELS[selectedBrand] ?? []).map((model) => (
+                    <button
+                      key={model}
+                      type="button"
+                      onClick={() => {
+                        setSelectedModel(model);
+                        setStep(3);
+                      }}
+                      className="w-full flex items-center justify-between p-3.5 rounded-xl border border-gray-200 hover:border-purple-400 hover:bg-purple-50 transition-all text-left"
+                      data-ocid="instant_buy.secondary_button"
+                    >
+                      <span className="text-sm font-medium">{model}</span>
+                      <ArrowRight className="h-4 w-4 text-gray-400" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* ── Step 3: Diagnostics ────────────────────────────────────── */}
           {step === 3 && (
             <motion.div
@@ -600,6 +733,14 @@ export default function InstantBuyPage() {
               transition={{ duration: 0.3 }}
             >
               <StepBar step={3} />
+
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="flex items-center gap-1 text-purple-600 text-sm font-medium mb-4 hover:underline"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back to model
+              </button>
 
               <div className="flex gap-2 mb-6">
                 {diagSubStepLabels.map((label, i) => (
@@ -862,7 +1003,7 @@ export default function InstantBuyPage() {
                           Base price
                         </span>
                         <span className="font-medium">
-                          {inr(BASE_PRICES[DEFAULT_BRAND] ?? 15000)}
+                          {inr(BASE_PRICES[selectedBrand] ?? 15000)}
                         </span>
                       </div>
                       {quote.deductions.map((d) => (

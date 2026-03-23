@@ -47,12 +47,12 @@ export default function BottomNav() {
       {/* Chats */}
       <button
         type="button"
-        onClick={() => navigate({ to: "/messages", search: {} } as any)}
+        onClick={() => handleAuthRequired("/messages")}
         className={tabClass("/messages")}
         data-ocid="bottom_nav.chats.link"
       >
         <div className="relative">
-          <MessageSquare className="h-5 w-5 text-blue-600" />
+          <MessageSquare className="h-5 w-5" />
           {/* Notification dot */}
           <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-orange-500 border-2 border-background" />
         </div>

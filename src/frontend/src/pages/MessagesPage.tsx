@@ -648,10 +648,10 @@ export default function MessagesPage() {
         <Lightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
       )}
 
-      <div className="grid md:grid-cols-5 gap-0 flex-1 min-h-[500px] rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+      <div className="md:col-span-5 flex flex-1 overflow-hidden">
         {/* ── Conversations list ──────────────────────────────────────── */}
         <div
-          className={`md:col-span-2 border-r border-gray-200 flex flex-col bg-[#F8F9FA] ${
+          className={`md:w-2/5 w-full border-r border-gray-200 flex flex-col bg-[#F8F9FA] ${
             selectedListingId ? "hidden md:flex" : "flex"
           }`}
         >

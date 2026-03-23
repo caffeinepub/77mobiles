@@ -526,6 +526,11 @@ function RealListingDetail({ listingId }: { listingId: string }) {
     listing?.seller.toString() === identity?.getPrincipal().toString();
 
   const handleCallSeller = () => {
+    if (!isAuthenticated) {
+      toast.error("Please login to call the seller");
+      login();
+      return;
+    }
     const phone = sellerProfile?.phone;
     if (!phone || phone.trim() === "") {
       toast.info("Seller hasn't added a phone number yet");
@@ -536,6 +541,11 @@ function RealListingDetail({ listingId }: { listingId: string }) {
   };
 
   const handleWhatsAppSeller = () => {
+    if (!isAuthenticated) {
+      toast.error("Please login to contact on WhatsApp");
+      login();
+      return;
+    }
     const phone = sellerProfile?.phone;
     if (!phone || phone.trim() === "") {
       toast.info("Seller hasn't added a phone number yet");
@@ -823,7 +833,7 @@ function RealListingDetail({ listingId }: { listingId: string }) {
             }}
             data-ocid="listing.primary_button"
           >
-            <MessageCircle className="h-5 w-5" />
+            <MessageCircle className="h-5 w-5 text-white" />
             Chat
           </button>
           <button

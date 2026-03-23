@@ -30,39 +30,11 @@ import MessagesPage from "./pages/MessagesPage";
 import MyAdsPage from "./pages/MyAdsPage";
 import PostAdPage from "./pages/PostAdPage";
 import ProfilePage from "./pages/ProfilePage";
-
-const EXCLUDED_PATHS = [
-  "/login",
-  "/admin",
-  "/b2b",
-  "/b2b-seller",
-  "/b2b-buyer",
-  "/demo",
-];
+import VendorDashboardPage from "./pages/VendorDashboardPage";
 
 function RootLayout() {
-  const { identity, isInitializing } = useInternetIdentity();
+  const { identity } = useInternetIdentity();
   const { data: profile, isFetched, isLoading } = useGetCallerUserProfile();
-  const location = useLocation();
-
-  const currentPath = location.pathname;
-  const isExcluded = EXCLUDED_PATHS.some(
-    (p) => currentPath === p || currentPath.startsWith(`${p}/`),
-  );
-
-  const isAnonymous =
-    !isInitializing &&
-    (identity === undefined || identity.getPrincipal().isAnonymous());
-
-  if (isAnonymous && !isExcluded) {
-    return (
-      <>
-        <LoginPage />
-        <Toaster richColors position="top-right" />
-      </>
-    );
-  }
-
   const showProfileSetup =
     !!identity && !isLoading && isFetched && profile === null;
 
@@ -152,6 +124,11 @@ const dealerRoute = createRoute({
   path: "/dealer",
   component: DealerDashboardPage,
 });
+const vendorRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/vendor",
+  component: VendorDashboardPage,
+});
 const b2bSellerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/b2b-seller",
@@ -206,6 +183,7 @@ const routeTree = rootRoute.addChildren([
   adminRoute,
   b2bRoute,
   dealerRoute,
+  vendorRoute,
   b2bSellerRoute,
   b2bBuyerRoute,
   loginRoute,
