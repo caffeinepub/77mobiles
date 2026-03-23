@@ -33,7 +33,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
-  BarChart2,
   CheckCircle2,
   ChevronRight,
   Crown,
@@ -127,7 +126,6 @@ function AccountCard({
 function MyAccountSection({ onLogout }: { onLogout: () => void }) {
   const [showEliteModal, setShowEliteModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
-  const navigate = useNavigate();
 
   return (
     <>
@@ -172,16 +170,7 @@ function MyAccountSection({ onLogout }: { onLogout: () => void }) {
             onClick={() => toast.info("Orders feature coming soon!")}
             data-ocid="profile.orders.button"
           />
-          <AccountCard
-            icon={<BarChart2 className="h-5 w-5 text-blue-600" />}
-            iconBg="bg-blue-100"
-            title="Vendor Dashboard (PRO)"
-            subtitle="Manage listings, analytics & inventory"
-            badge="PRO"
-            badgeColor="bg-amber-100 text-amber-700"
-            onClick={() => navigate({ to: "/vendor" })}
-            data-ocid="profile.vendor.button"
-          />
+
           <AccountCard
             icon={<Crown className="h-5 w-5 text-amber-600" />}
             iconBg="bg-amber-100"
@@ -503,9 +492,6 @@ export default function ProfilePage() {
                 <UserPlus className="h-3 w-3" /> Find Friends
               </button>
             </div>
-            <p className="text-xs text-muted-foreground font-mono mt-0.5">
-              {identity.getPrincipal().toString().slice(0, 20)}...
-            </p>
           </div>
           <Button
             variant="outline"

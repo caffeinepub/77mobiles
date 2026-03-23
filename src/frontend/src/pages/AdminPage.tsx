@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -30,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -41,16 +43,19 @@ import {
   Settings,
   Shield,
   ShieldAlert,
+  ShoppingBag,
   Users,
   XCircle,
 } from "lucide-react";
 import {
   ArrowDown,
   ArrowUp,
+  BarChart2,
   Edit2,
   Image,
   Plus,
   RotateCcw,
+  Smartphone,
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
@@ -63,6 +68,11 @@ import {
   useUpdateBookingStatus,
   useUpdateDealerKycStatus,
 } from "../hooks/useQueries";
+import type { AffiliateClick, AffiliateProduct } from "../pages/NewPhoneStore";
+import {
+  getAffiliateProducts,
+  saveAffiliateProducts,
+} from "../pages/NewPhoneStore";
 
 function formatInr(n: bigint | number) {
   const num = typeof n === "bigint" ? Number(n) : n;
@@ -1088,6 +1098,1055 @@ function BannerSlidesTab() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Accessories Management Tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface AccessoryProduct {
+  id: string;
+  title: string;
+  description: string;
+  compatibility: string;
+  originalPrice: number;
+  salePrice: number;
+  inStock: boolean;
+  category: string;
+}
+
+const SAMPLE_ACCESSORIES: AccessoryProduct[] = [
+  {
+    id: "1",
+    title: "Leather MagSafe Case for iPhone 17",
+    description: "Premium genuine leather MagSafe compatible case.",
+    compatibility: "Fits iPhone 16 & 17",
+    originalPrice: 1999,
+    salePrice: 999,
+    inStock: true,
+    category: "MagSafe",
+  },
+  {
+    id: "2",
+    title: "Clear Slim Case iPhone 16 Pro",
+    description: "Ultra-clear polycarbonate slim case.",
+    compatibility: "Fits iPhone 16 Pro",
+    originalPrice: 799,
+    salePrice: 499,
+    inStock: true,
+    category: "Leather",
+  },
+  {
+    id: "3",
+    title: "Premium Screen Guard 9H",
+    description: "9H hardness tempered glass screen protector.",
+    compatibility: "Fits iPhone 15 & 16 series",
+    originalPrice: 499,
+    salePrice: 299,
+    inStock: false,
+    category: "Screen Guards",
+  },
+];
+
+const INITIAL_TAGS = [
+  "All",
+  "MagSafe",
+  "Leather",
+  "Screen Guards",
+  "AirTag Cases",
+  "Wireless Charging",
+];
+
+function AccessoriesTab() {
+  const [products, setProducts] = useState<AccessoryProduct[]>(() => {
+    try {
+      return (
+        JSON.parse(localStorage.getItem("adminAccessories") || "null") ??
+        SAMPLE_ACCESSORIES
+      );
+    } catch {
+      return SAMPLE_ACCESSORIES;
+    }
+  });
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<Partial<AccessoryProduct>>({});
+  const [tags, setTags] = useState<string[]>(INITIAL_TAGS);
+  const [newTag, setNewTag] = useState("");
+  const [bannerLink, setBannerLink] = useState("category-cases");
+  const [bannerExternalUrl, setBannerExternalUrl] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const saveProducts = (p: AccessoryProduct[]) => {
+    setProducts(p);
+    localStorage.setItem("adminAccessories", JSON.stringify(p));
+  };
+
+  const openAdd = () => {
+    setForm({});
+    setEditingId(null);
+    setShowForm(true);
+  };
+  const openEdit = (p: AccessoryProduct) => {
+    setForm(p);
+    setEditingId(p.id);
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
+    if (!form.title || !form.salePrice) return;
+    if (editingId) {
+      saveProducts(
+        products.map((p) =>
+          p.id === editingId ? ({ ...p, ...form } as AccessoryProduct) : p,
+        ),
+      );
+    } else {
+      saveProducts([
+        ...products,
+        { ...form, id: Date.now().toString() } as AccessoryProduct,
+      ]);
+    }
+    setShowForm(false);
+  };
+
+  const toggleStock = (id: string) =>
+    saveProducts(
+      products.map((p) => (p.id === id ? { ...p, inStock: !p.inStock } : p)),
+    );
+  const deleteProduct = (id: string) =>
+    saveProducts(products.filter((p) => p.id !== id));
+
+  const addTag = () => {
+    if (newTag.trim() && !tags.includes(newTag.trim())) {
+      setTags([...tags, newTag.trim()]);
+      setNewTag("");
+    }
+  };
+  const removeTag = (t: string) => setTags(tags.filter((x) => x !== t));
+  const moveTag = (i: number, dir: number) => {
+    const arr = [...tags];
+    const j = i + dir;
+    if (j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    setTags(arr);
+  };
+
+  const discount = (orig: number, sale: number) =>
+    orig > 0 ? Math.round((1 - sale / orig) * 100) : 0;
+
+  return (
+    <div className="space-y-8">
+      {/* Section 1: Product Inventory */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-bold text-lg text-gray-900">
+              Product Inventory Manager
+            </h3>
+            <p className="text-sm text-gray-500">
+              Manage accessories linked to the shop
+            </p>
+          </div>
+          <Button
+            onClick={openAdd}
+            className="gap-2 bg-blue-600 hover:bg-blue-700"
+            data-ocid="accessories.primary_button"
+          >
+            <Plus className="h-4 w-4" /> Add New Product
+          </Button>
+        </div>
+
+        {showForm && (
+          <div className="border border-blue-200 rounded-xl p-4 bg-blue-50 mb-4 space-y-3">
+            <h4 className="font-semibold text-blue-900">
+              {editingId ? "Edit Product" : "New Product"}
+            </h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Label className="text-xs text-gray-600">Product Title *</Label>
+                <Input
+                  value={form.title ?? ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, title: e.target.value }))
+                  }
+                  placeholder="e.g. Leather MagSafe Case for iPhone 17"
+                  data-ocid="accessories.input"
+                />
+              </div>
+              <div className="col-span-2">
+                <Label className="text-xs text-gray-600">Description</Label>
+                <Textarea
+                  value={form.description ?? ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, description: e.target.value }))
+                  }
+                  placeholder="Product description..."
+                  rows={2}
+                  data-ocid="accessories.textarea"
+                />
+              </div>
+              <div className="col-span-2">
+                <Label className="text-xs text-gray-600">Compatibility</Label>
+                <Input
+                  value={form.compatibility ?? ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, compatibility: e.target.value }))
+                  }
+                  placeholder="e.g. Fits iPhone 15 & 16"
+                  data-ocid="accessories.input"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-600">
+                  Original Price (₹)
+                </Label>
+                <Input
+                  type="number"
+                  value={form.originalPrice ?? ""}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      originalPrice: Number(e.target.value),
+                    }))
+                  }
+                  placeholder="1999"
+                  data-ocid="accessories.input"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-600">
+                  Sale Price (₹) *
+                </Label>
+                <Input
+                  type="number"
+                  value={form.salePrice ?? ""}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      salePrice: Number(e.target.value),
+                    }))
+                  }
+                  placeholder="999"
+                  data-ocid="accessories.input"
+                />
+              </div>
+              {form.originalPrice && form.salePrice ? (
+                <div className="col-span-2">
+                  <Badge className="bg-green-100 text-green-700">
+                    {discount(form.originalPrice, form.salePrice)}% discount
+                    auto-calculated
+                  </Badge>
+                </div>
+              ) : null}
+              <div className="col-span-2 flex items-center gap-3">
+                <Switch
+                  checked={form.inStock ?? true}
+                  onCheckedChange={(v) =>
+                    setForm((f) => ({ ...f, inStock: v }))
+                  }
+                  data-ocid="accessories.switch"
+                />
+                <Label className="text-sm">In Stock</Label>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                onClick={handleSave}
+                className="bg-blue-600 hover:bg-blue-700"
+                data-ocid="accessories.save_button"
+              >
+                Save Product
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowForm(false)}
+                data-ocid="accessories.cancel_button"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <Table data-ocid="accessories.table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead>Pricing</TableHead>
+              <TableHead>Discount</TableHead>
+              <TableHead>Stock</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {products.map((p, i) => (
+              <TableRow key={p.id} data-ocid={`accessories.row.${i + 1}`}>
+                <TableCell>
+                  <div>
+                    <p className="font-medium text-sm">{p.title}</p>
+                    <p className="text-xs text-gray-500">{p.compatibility}</p>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <p className="font-bold text-blue-600">
+                      ₹{p.salePrice.toLocaleString("en-IN")}
+                    </p>
+                    <p className="text-xs text-gray-400 line-through">
+                      ₹{p.originalPrice.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge className="bg-orange-100 text-orange-700">
+                    {discount(p.originalPrice, p.salePrice)}% off
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    checked={p.inStock}
+                    onCheckedChange={() => toggleStock(p.id)}
+                    data-ocid={`accessories.toggle.${i + 1}`}
+                  />
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openEdit(p)}
+                      data-ocid={`accessories.edit_button.${i + 1}`}
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600 hover:text-red-700"
+                      onClick={() => deleteProduct(p.id)}
+                      data-ocid={`accessories.delete_button.${i + 1}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Section 2: Banner & Promotions */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+        <div>
+          <h3 className="font-bold text-lg text-gray-900">
+            Banner & Promotions Manager
+          </h3>
+          <p className="text-sm text-gray-500">
+            Control the hero banner on the accessories store
+          </p>
+        </div>
+        <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center bg-gray-50">
+          <Image className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+          <p className="text-sm text-gray-500 mb-2">Upload hero banner image</p>
+          <Button
+            variant="outline"
+            size="sm"
+            data-ocid="accessories.upload_button"
+          >
+            Choose Image
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs text-gray-600">Banner Link</Label>
+            <Select value={bannerLink} onValueChange={setBannerLink}>
+              <SelectTrigger data-ocid="accessories.select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="specific-product">
+                  Link to Specific Product
+                </SelectItem>
+                <SelectItem value="category-cases">
+                  Link to Category: Cases
+                </SelectItem>
+                <SelectItem value="category-screen-guards">
+                  Link to Category: Screen Guards
+                </SelectItem>
+                <SelectItem value="external-url">
+                  Link to External URL
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {bannerLink === "external-url" && (
+            <div>
+              <Label className="text-xs text-gray-600">External URL</Label>
+              <Input
+                value={bannerExternalUrl}
+                onChange={(e) => setBannerExternalUrl(e.target.value)}
+                placeholder="https://..."
+                data-ocid="accessories.input"
+              />
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs text-gray-600">Start Date</Label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              data-ocid="accessories.input"
+            />
+          </div>
+          <div>
+            <Label className="text-xs text-gray-600">End Date</Label>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              data-ocid="accessories.input"
+            />
+          </div>
+        </div>
+        <Button
+          className="bg-blue-600 hover:bg-blue-700"
+          data-ocid="accessories.save_button"
+        >
+          Save Banner Settings
+        </Button>
+      </div>
+
+      {/* Section 3: Category & Filter Tags */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+        <div>
+          <h3 className="font-bold text-lg text-gray-900">
+            Category & Filter Tags
+          </h3>
+          <p className="text-sm text-gray-500">
+            Manage tags shown in the accessories store filter bar
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Input
+            value={newTag}
+            onChange={(e) => setNewTag(e.target.value)}
+            placeholder="New tag name..."
+            onKeyDown={(e) => e.key === "Enter" && addTag()}
+            data-ocid="accessories.input"
+          />
+          <Button
+            onClick={addTag}
+            className="bg-blue-600 hover:bg-blue-700"
+            data-ocid="accessories.primary_button"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {tags.map((t) => (
+            <span
+              key={t}
+              className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full"
+            >
+              {t}
+              {t !== "All" && (
+                <button
+                  type="button"
+                  onClick={() => removeTag(t)}
+                  className="ml-1 text-blue-500 hover:text-red-600"
+                  data-ocid="accessories.delete_button"
+                >
+                  ×
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Sort Order (drag/reorder)
+          </p>
+          {tags.map((t, i) => (
+            <div
+              key={t}
+              className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2"
+            >
+              <span className="text-xs font-bold text-gray-400 w-5">
+                {i + 1}
+              </span>
+              <span className="flex-1 text-sm">{t}</span>
+              <button
+                type="button"
+                onClick={() => moveTag(i, -1)}
+                disabled={i === 0}
+                className="p-1 disabled:opacity-30 hover:text-blue-600"
+                data-ocid="accessories.button"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => moveTag(i, 1)}
+                disabled={i === tags.length - 1}
+                className="p-1 disabled:opacity-30 hover:text-blue-600"
+                data-ocid="accessories.button"
+              >
+                <ArrowDown className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Section 4: Sales Analytics */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5">
+        <div>
+          <h3 className="font-bold text-lg text-gray-900">
+            Sales Analytics (Retail)
+          </h3>
+          <p className="text-sm text-gray-500">
+            Accessory store performance overview
+          </p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: "Total Accessory Sales", value: "₹45,230", color: "blue" },
+            {
+              label: "Most Viewed Item",
+              value: "Leather MagSafe Case",
+              color: "purple",
+            },
+            { label: "Conversion Rate", value: "6.8%", color: "green" },
+            { label: "Items In Stock", value: "12", color: "orange" },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className={`bg-${s.color}-50 rounded-xl p-4 border border-${s.color}-100`}
+            >
+              <p className="text-xs text-gray-500 mb-1">{s.label}</p>
+              <p className={`font-bold text-${s.color}-700 text-sm`}>
+                {s.value}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            Weekly Accessory Sales
+          </p>
+          <div className="flex items-end gap-2 h-24">
+            {[
+              { d: "M", h: 65 },
+              { d: "T", h: 80 },
+              { d: "W", h: 45 },
+              { d: "T2", h: 90 },
+              { d: "F", h: 70 },
+              { d: "S", h: 85 },
+              { d: "S2", h: 60 },
+            ].map(({ d, h }) => (
+              <div key={d} className="flex-1 flex flex-col items-center gap-1">
+                <div
+                  className="w-full bg-blue-500 rounded-t-md"
+                  style={{ height: `${h}%` }}
+                />
+                <span className="text-[10px] text-gray-400">
+                  {d.replace("2", "")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+          <ShoppingBag className="h-5 w-5 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-800">
+            Accessory sales vs User Ads: <strong>34% of total revenue</strong>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AffiliateStoreTab() {
+  const [products, setProducts] = useState<AffiliateProduct[]>(() =>
+    getAffiliateProducts(),
+  );
+  const [editingProduct, setEditingProduct] = useState<AffiliateProduct | null>(
+    null,
+  );
+  const [showForm, setShowForm] = useState(false);
+  const [clicks] = useState<AffiliateClick[]>(() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem("affiliateClicks") ?? "[]",
+      ) as AffiliateClick[];
+    } catch {
+      return [];
+    }
+  });
+
+  const emptyForm: Omit<AffiliateProduct, "id"> = {
+    product_name: "",
+    image: "",
+    original_price: 0,
+    sale_price: 0,
+    discount_pct: 0,
+    retailer_tag: "Amazon",
+    affiliate_url: "",
+    is_active: true,
+    show_low_stock_badge: false,
+    category: "Flagship",
+  };
+
+  const [form, setForm] = useState<Omit<AffiliateProduct, "id">>(emptyForm);
+
+  const calcDiscount = (orig: number, sale: number) =>
+    orig > 0 ? Math.round(((orig - sale) / orig) * 100) : 0;
+
+  function openAdd() {
+    setForm(emptyForm);
+    setEditingProduct(null);
+    setShowForm(true);
+  }
+
+  function openEdit(p: AffiliateProduct) {
+    setForm({ ...p });
+    setEditingProduct(p);
+    setShowForm(true);
+  }
+
+  function saveForm() {
+    const discount = calcDiscount(form.original_price, form.sale_price);
+    const updated = { ...form, discount_pct: discount };
+    let newList: AffiliateProduct[];
+    if (editingProduct) {
+      newList = products.map((p) =>
+        p.id === editingProduct.id ? { ...updated, id: editingProduct.id } : p,
+      );
+    } else {
+      const newId =
+        products.length > 0 ? Math.max(...products.map((p) => p.id)) + 1 : 1;
+      newList = [...products, { ...updated, id: newId }];
+    }
+    saveAffiliateProducts(newList);
+    setProducts(newList);
+    setShowForm(false);
+  }
+
+  function deleteProduct(id: number) {
+    const newList = products.filter((p) => p.id !== id);
+    saveAffiliateProducts(newList);
+    setProducts(newList);
+  }
+
+  function toggleActive(id: number) {
+    const newList = products.map((p) =>
+      p.id === id ? { ...p, is_active: !p.is_active } : p,
+    );
+    saveAffiliateProducts(newList);
+    setProducts(newList);
+  }
+
+  function toggleLowStock(id: number) {
+    const newList = products.map((p) =>
+      p.id === id ? { ...p, show_low_stock_badge: !p.show_low_stock_badge } : p,
+    );
+    saveAffiliateProducts(newList);
+    setProducts(newList);
+  }
+
+  // Click analytics: aggregate by productId
+  const clickStats = clicks.reduce<
+    Record<number, { name: string; retailer: string; count: number }>
+  >((acc, c) => {
+    if (!acc[c.productId])
+      acc[c.productId] = {
+        name: c.productName,
+        retailer: c.retailer,
+        count: 0,
+      };
+    acc[c.productId].count += 1;
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-8" data-ocid="affiliate.section">
+      {/* Product Manager */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+              <Smartphone className="h-5 w-5 text-blue-600" />
+              Affiliate Product Manager
+            </h3>
+            <p className="text-sm text-gray-500">
+              Manage phones shown in the New Phone Store
+            </p>
+          </div>
+          <Button
+            size="sm"
+            className="gap-2"
+            onClick={openAdd}
+            data-ocid="affiliate.primary_button"
+          >
+            <Plus className="h-4 w-4" />
+            Add Product
+          </Button>
+        </div>
+
+        {/* Add/Edit Form */}
+        {showForm && (
+          <div className="border border-blue-200 bg-blue-50 rounded-xl p-5 space-y-4">
+            <h4 className="font-semibold text-gray-800">
+              {editingProduct ? "Edit Product" : "Add New Product"}
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <Label className="text-xs font-semibold text-gray-600 mb-1 block">
+                  Product Title
+                </Label>
+                <Input
+                  value={form.product_name}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, product_name: e.target.value }))
+                  }
+                  placeholder="e.g. Apple iPhone 17 Pro"
+                  data-ocid="affiliate.input"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-600 mb-1 block">
+                  Category
+                </Label>
+                <Select
+                  value={form.category}
+                  onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}
+                >
+                  <SelectTrigger data-ocid="affiliate.select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["Flagship", "Budget", "Gaming", "Mid-Range"].map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-600 mb-1 block">
+                  Retailer
+                </Label>
+                <Select
+                  value={form.retailer_tag}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, retailer_tag: v }))
+                  }
+                >
+                  <SelectTrigger data-ocid="affiliate.select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["Amazon", "Flipkart", "Meesho", "Croma"].map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-600 mb-1 block">
+                  Original Price (₹)
+                </Label>
+                <Input
+                  type="number"
+                  value={form.original_price || ""}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      original_price: Number(e.target.value),
+                    }))
+                  }
+                  placeholder="89999"
+                  data-ocid="affiliate.input"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-600 mb-1 block">
+                  Sale Price (₹)
+                  {form.original_price > 0 && form.sale_price > 0 && (
+                    <span className="ml-2 text-green-600 font-bold">
+                      {calcDiscount(form.original_price, form.sale_price)}% OFF
+                    </span>
+                  )}
+                </Label>
+                <Input
+                  type="number"
+                  value={form.sale_price || ""}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      sale_price: Number(e.target.value),
+                    }))
+                  }
+                  placeholder="34999"
+                  data-ocid="affiliate.input"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label className="text-xs font-semibold text-gray-600 mb-1 block">
+                  Affiliate Link
+                </Label>
+                <Input
+                  value={form.affiliate_url}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, affiliate_url: e.target.value }))
+                  }
+                  placeholder="https://www.amazon.in/dp/..."
+                  data-ocid="affiliate.input"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={form.is_active}
+                  onCheckedChange={(v) =>
+                    setForm((f) => ({ ...f, is_active: v }))
+                  }
+                  data-ocid="affiliate.switch"
+                />
+                <Label className="text-sm">Active (visible in store)</Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={form.show_low_stock_badge}
+                  onCheckedChange={(v) =>
+                    setForm((f) => ({ ...f, show_low_stock_badge: v }))
+                  }
+                  data-ocid="affiliate.switch"
+                />
+                <Label className="text-sm">Show "Low Stock" Badge</Label>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                onClick={saveForm}
+                data-ocid="affiliate.save_button"
+              >
+                {editingProduct ? "Save Changes" : "Add Product"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowForm(false)}
+                data-ocid="affiliate.cancel_button"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Products Table */}
+        <div className="overflow-x-auto">
+          <Table data-ocid="affiliate.table">
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="text-xs font-semibold">Product</TableHead>
+                <TableHead className="text-xs font-semibold">
+                  Category
+                </TableHead>
+                <TableHead className="text-xs font-semibold">
+                  Retailer
+                </TableHead>
+                <TableHead className="text-xs font-semibold">Price</TableHead>
+                <TableHead className="text-xs font-semibold">Active</TableHead>
+                <TableHead className="text-xs font-semibold">
+                  Low Stock
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-right">
+                  Actions
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {products.map((p, i) => (
+                <TableRow key={p.id} data-ocid={`affiliate.item.${i + 1}`}>
+                  <TableCell className="font-medium text-sm max-w-[180px] truncate">
+                    {p.product_name}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {p.category}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-600">
+                    {p.retailer_tag}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    <span className="font-bold text-gray-900">
+                      ₹{p.sale_price.toLocaleString("en-IN")}
+                    </span>
+                    <span className="text-xs text-gray-400 line-through ml-1">
+                      ₹{p.original_price.toLocaleString("en-IN")}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={p.is_active}
+                      onCheckedChange={() => toggleActive(p.id)}
+                      data-ocid="affiliate.switch"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={p.show_low_stock_badge}
+                      onCheckedChange={() => toggleLowStock(p.id)}
+                      data-ocid="affiliate.switch"
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => openEdit(p)}
+                        className="h-7 w-7"
+                        data-ocid="affiliate.edit_button"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => deleteProduct(p.id)}
+                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        data-ocid="affiliate.delete_button"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {products.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={7}
+                    className="text-center text-gray-400 py-8"
+                    data-ocid="affiliate.empty_state"
+                  >
+                    No affiliate products yet. Add your first product above.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Click Analytics */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5">
+        <div>
+          <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+            <BarChart2 className="h-5 w-5 text-purple-600" />
+            Affiliate Click Analytics
+          </h3>
+          <p className="text-sm text-gray-500">
+            Outbound clicks logged from the New Phone Store
+          </p>
+        </div>
+
+        {/* Total Clicks Card */}
+        <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 inline-flex items-center gap-3">
+          <div className="h-10 w-10 bg-purple-600 rounded-xl flex items-center justify-center">
+            <BarChart2 className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Total Affiliate Clicks</p>
+            <p className="text-2xl font-bold text-purple-700">
+              {clicks.length}
+            </p>
+          </div>
+        </div>
+
+        {Object.keys(clickStats).length === 0 ? (
+          <div
+            className="text-center py-8 text-gray-400 text-sm"
+            data-ocid="affiliate.empty_state"
+          >
+            No clicks recorded yet. Clicks are logged when users tap "Check Best
+            Price" in the store.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="text-xs font-semibold">Product</TableHead>
+                <TableHead className="text-xs font-semibold">
+                  Retailer
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-right">
+                  Total Clicks
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Object.entries(clickStats)
+                .sort((a, b) => b[1].count - a[1].count)
+                .map(([id, stat], i) => (
+                  <TableRow key={id} data-ocid={`affiliate.item.${i + 1}`}>
+                    <TableCell className="font-medium text-sm">
+                      {stat.name}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {stat.retailer}
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-blue-600">
+                      {stat.count}
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        )}
+
+        {clicks.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Recent Clicks
+            </p>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {clicks.slice(0, 20).map((c, i) => (
+                <div
+                  key={c.timestamp + String(i)}
+                  className="flex items-center justify-between text-xs text-gray-600 py-1 border-b border-gray-100 last:border-0"
+                >
+                  <span className="font-medium truncate max-w-[200px]">
+                    {c.productName}
+                  </span>
+                  <span className="text-gray-400 shrink-0 ml-2">
+                    {new Date(c.timestamp).toLocaleString("en-IN", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { data: role, isLoading: roleLoading } = useGetCallerUserRole();
   const [demoMode, setDemoMode] = useState(false);
@@ -1230,6 +2289,22 @@ export default function AdminPage() {
             <Settings className="h-4 w-4" />
             Banner Slides
           </TabsTrigger>
+          <TabsTrigger
+            value="accessories"
+            className="gap-2"
+            data-ocid="admin.tab"
+          >
+            <ShoppingBag className="h-4 w-4" />
+            Store: Accessories
+          </TabsTrigger>
+          <TabsTrigger
+            value="affiliate-store"
+            className="gap-2"
+            data-ocid="admin.tab"
+          >
+            <Smartphone className="h-4 w-4" />
+            Affiliate Store
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="bookings">
@@ -1242,6 +2317,13 @@ export default function AdminPage() {
 
         <TabsContent value="banner-slides">
           <BannerSlidesTab />
+        </TabsContent>
+
+        <TabsContent value="accessories">
+          <AccessoriesTab />
+        </TabsContent>
+        <TabsContent value="affiliate-store">
+          <AffiliateStoreTab />
         </TabsContent>
       </Tabs>
     </div>

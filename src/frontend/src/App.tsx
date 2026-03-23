@@ -15,6 +15,7 @@ import Navbar from "./components/Navbar";
 import ProfileSetupModal from "./components/ProfileSetupModal";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import { useGetCallerUserProfile } from "./hooks/useQueries";
+import AccessoriesStorePage from "./pages/AccessoriesStorePage";
 import AdminPage from "./pages/AdminPage";
 import B2BBuyerPage from "./pages/B2BBuyerPage";
 import B2BSellerPage from "./pages/B2BSellerPage";
@@ -28,6 +29,7 @@ import ListingDetailPage from "./pages/ListingDetailPage";
 import LoginPage from "./pages/LoginPage";
 import MessagesPage from "./pages/MessagesPage";
 import MyAdsPage from "./pages/MyAdsPage";
+import NewPhoneStore from "./pages/NewPhoneStore";
 import PostAdPage from "./pages/PostAdPage";
 import ProfilePage from "./pages/ProfilePage";
 import VendorDashboardPage from "./pages/VendorDashboardPage";
@@ -129,6 +131,16 @@ const vendorRoute = createRoute({
   path: "/vendor",
   component: VendorDashboardPage,
 });
+const accessoriesStoreRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/store/accessories",
+  component: AccessoriesStorePage,
+});
+const newPhonesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/store/new-phones",
+  component: NewPhoneStore,
+});
 const b2bSellerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/b2b-seller",
@@ -184,6 +196,8 @@ const routeTree = rootRoute.addChildren([
   b2bRoute,
   dealerRoute,
   vendorRoute,
+  accessoriesStoreRoute,
+  newPhonesRoute,
   b2bSellerRoute,
   b2bBuyerRoute,
   loginRoute,

@@ -1,34 +1,30 @@
 # 77mobiles
 
 ## Current State
-- Check Price button links to `/instant-buy` which starts at diagnostics step 3; no brand/model selection exists.
-- Chat button in listing sticky footer and BottomNav chat icon need icon color fixes.
-- MessagesPage is a split-panel layout, not an OLX full-screen inbox with Buying/Selling tabs, alert banners, and proper empty states.
-- App gates all routes behind login screen — anonymous users are redirected to LoginPage.
-- No Vendor Dashboard exists.
+The app has a /store/accessories route that exists but opens as a separate page without native app integration. The home screen has promotional banners including a 'Let's Find a Phone' blue banner with a 'Browse Phones' button. The admin panel has a 'Store: Accessories' tab. The chat icon in ad sticky footer needs to be white.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Steps 1 & 2 to InstantBuyPage: Brand selection grid (step 1) and Model selection list (step 2), before existing Diagnostics (step 3).
-- MessagesPage OLX Inbox redesign: centered "Inbox" title, Buying/Selling tabs with active blue underline and unread badge on Buying ("35"), "Package Expired" alert banner below tabs, full-screen empty state with flashlight/search SVG illustration, primary text, secondary text, and full-width CTA buttons.
-- VendorDashboardPage at `/vendor` with: featured product upload carousel (premium slides with add/edit), sales analytics (revenue chart, units sold, views), and inventory management table.
-- Route `/vendor` in App.tsx.
+- `/store/new-phones` route: Deal-focused phone store with navy blue (#001A3D) background, horizontal frosted-glass product cards (image left, details right), discount badges, strikethrough prices, affiliate 'Check Best Price' buttons that append tracking ID and open in-app
+- AffiliateMarketplace data model: product_name, image, original_price, sale_price, discount_pct, retailer_tag, affiliate_url, is_active (boolean), show_low_stock_badge (boolean), category
+- Admin Panel 'Affiliate Store' tab: CRUD interface for affiliate products, retailer dropdown (Amazon/Flipkart/etc), active/inactive toggle, low stock badge toggle, click tracking analytics
+- Click tracking: log outbound affiliate clicks before redirect
 
 ### Modify
-- App.tsx: Remove anonymous→LoginPage gate from RootLayout. Add auth check inside BottomNav for Chat tab (navigate to login if not authenticated). Auth checks already exist on My Ads and Account tabs.
-- BottomNav: Chat tab icon color white (remove text-blue-600 hardcode); keep notification dot.
-- ListingDetailPage sticky footer: ensure Chat MessageCircle icon renders white explicitly (add text-white class).
-- MessagesPage: Full OLX Inbox redesign as described above.
+- /store/accessories: Integrate as native full-screen view — slide-left animation on enter, back arrow in header, bottom nav stays visible, no browser UI elements
+- Home screen 'Shop Accessories' button/banner: use internal router push (no external redirect)
+- Home screen 'Browse Phones' button in blue banner: link to /store/new-phones as native view with slide-left animation
+- Chat icon in ad sticky footer: change to white color
 
 ### Remove
-- Anonymous redirect block in RootLayout (the `if (isAnonymous && !isExcluded)` guard that shows LoginPage).
+- Any external href/window.location usage for the accessories store navigation
 
 ## Implementation Plan
-1. Update InstantBuyPage to add brand/model selection steps (step 1 and 2), shifting old steps to 3-5.
-2. Update BottomNav to remove text-blue-600 from chat icon.
-3. Update ListingDetailPage sticky footer chat icon to be explicitly white.
-4. Redesign MessagesPage to full-screen OLX inbox with tabs, badges, alert banner, and empty states.
-5. Remove anonymous gate in App.tsx; add auth guard to BottomNav chat tab instead.
-6. Create VendorDashboardPage with carousel uploader, analytics, and inventory.
-7. Add `/vendor` route to App.tsx.
+1. Update /store/accessories to render inside the main app layout (with bottom nav visible), add slide-left CSS transition, add back arrow header
+2. Update home screen 'Shop Accessories' click handler to use internal router (useState/route push)
+3. Create /store/new-phones component with navy background, horizontal frosted-glass cards pulled from AffiliateMarketplace state, affiliate link redirect with tracking ID append
+4. Add AffiliateMarketplace mock data store (localStorage-backed) with sample phones
+5. Add 'Affiliate Store' tab to admin panel with full CRUD, retailer dropdown, active toggle, low stock badge toggle
+6. Add click tracking counter in admin analytics for affiliate redirects
+7. Fix chat icon color to white in ad detail sticky footer

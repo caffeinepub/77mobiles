@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BANNER_SLIDES } from "../data/bannerSlides";
@@ -8,6 +9,7 @@ export default function PromoBannerCarousel() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
+  const navigate = useNavigate();
 
   const goTo = useCallback((idx: number) => {
     setCurrent((idx + BANNER_SLIDES.length) % BANNER_SLIDES.length);
@@ -46,11 +48,22 @@ export default function PromoBannerCarousel() {
     setPaused(false);
   };
 
+  const handleCtaClick = (e: React.MouseEvent, url: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Internal routes start with /
+    if (url.startsWith("/")) {
+      navigate({ to: url as any });
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
   const slide = BANNER_SLIDES[current];
 
   return (
     <div className="mb-5" data-ocid="promo.panel">
-      {/* Banner Container — using a section with a nested link for a11y */}
+      {/* Banner Container */}
       <section
         className="relative rounded-2xl overflow-hidden shadow-md select-none"
         style={{
@@ -120,9 +133,9 @@ export default function PromoBannerCarousel() {
               <p className="text-white/80 text-xs sm:text-sm mb-3 max-w-[200px] sm:max-w-xs">
                 {slide.subtitle}
               </p>
-              <a
-                href={slide.ctaUrl}
-                onClick={(e) => e.stopPropagation()}
+              <button
+                type="button"
+                onClick={(e) => handleCtaClick(e, slide.ctaUrl)}
                 className="self-start px-4 py-2 rounded-full text-xs font-bold shadow-md transition-all hover:scale-105"
                 style={{
                   backgroundColor: "white",
@@ -131,7 +144,7 @@ export default function PromoBannerCarousel() {
                 data-ocid="promo.primary_button"
               >
                 {slide.ctaText}
-              </a>
+              </button>
             </div>
 
             {/* Image Side */}

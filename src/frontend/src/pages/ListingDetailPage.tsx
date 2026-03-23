@@ -425,7 +425,10 @@ function DemoListingDetail({ listingId }: { listingId: string }) {
           }}
           data-ocid="listing.primary_button"
         >
-          <MessageCircle className="h-5 w-5" />
+          <MessageCircle
+            className="h-5 w-5 text-white"
+            style={{ color: "#ffffff" }}
+          />
           Chat
         </button>
         <a
