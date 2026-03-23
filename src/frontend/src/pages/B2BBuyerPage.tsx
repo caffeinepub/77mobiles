@@ -73,6 +73,7 @@ interface B2BListing {
   expiresAt: number;
   sellerId: string;
   acceptedEarly?: boolean;
+  photoDataUrls?: string[];
 }
 
 interface B2BBid {
@@ -277,9 +278,17 @@ function AuctionCard({
         </div>
       )}
       <div className="flex gap-3 p-4">
-        {/* Image placeholder */}
-        <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shrink-0 relative">
-          <Tag className="h-8 w-8 text-gray-400" />
+        {/* Image */}
+        <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shrink-0 relative overflow-hidden">
+          {listing.photoDataUrls?.[0] ? (
+            <img
+              src={listing.photoDataUrls[0]}
+              alt={listing.title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Tag className="h-8 w-8 text-gray-400" />
+          )}
           {isLive && !isExpired && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
               LIVE

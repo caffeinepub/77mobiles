@@ -1,0 +1,877 @@
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Heart,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Play,
+  Send,
+  Share2,
+  ShieldCheck,
+  User,
+} from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { DEMO_LISTINGS, DEMO_SELLER_NAME } from "../data/demoListings";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useGetListing, useGetSellerProfile } from "../hooks/useQueries";
+import {
+  conditionClass,
+  conditionLabel,
+  formatPriceFull,
+  formatTimeAgo,
+} from "../utils/format";
+
+const CATEGORY_LABELS: Record<string, string> = {
+  phones: "Phones",
+  macbooks: "MacBooks",
+  watches: "Watches",
+  earphones: "Earphones",
+};
+
+// City -> approx lat/lon for Indian cities
+const CITY_COORDS: Record<string, [number, number]> = {
+  hyderabad: [17.385, 78.4867],
+  mumbai: [19.076, 72.8777],
+  delhi: [28.6139, 77.209],
+  bangalore: [12.9716, 77.5946],
+  bengaluru: [12.9716, 77.5946],
+  chennai: [13.0827, 80.2707],
+  kolkata: [22.5726, 88.3639],
+  pune: [18.5204, 73.8567],
+  ahmedabad: [23.0225, 72.5714],
+  jaipur: [26.9124, 75.7873],
+  lucknow: [26.8467, 80.9462],
+  surat: [21.1702, 72.8311],
+  kochi: [9.9312, 76.2673],
+  chandigarh: [30.7333, 76.7794],
+  bhopal: [23.2599, 77.4126],
+  indore: [22.7196, 75.8577],
+  nagpur: [21.1458, 79.0882],
+  coimbatore: [11.0168, 76.9558],
+  vizag: [17.6868, 83.2185],
+  visakhapatnam: [17.6868, 83.2185],
+};
+
+function getCityCoords(locationStr: string): [number, number] {
+  const lower = locationStr.toLowerCase();
+  for (const [key, coords] of Object.entries(CITY_COORDS)) {
+    if (lower.includes(key)) return coords;
+  }
+  return [17.385, 78.4867];
+}
+
+function SellerLocationMap({ location }: { location: string }) {
+  const [lat, lon] = getCityCoords(location);
+  const bbox = `${lon - 0.08},${lat - 0.06},${lon + 0.08},${lat + 0.06}`;
+  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`;
+
+  return (
+    <div className="mt-6">
+      <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-1.5">
+        <MapPin className="h-4 w-4 text-primary" />
+        Seller's Location
+      </h2>
+      <div
+        className="rounded-2xl overflow-hidden border border-border shadow-sm"
+        style={{ height: 250 }}
+      >
+        <iframe
+          title="Seller location map"
+          width="100%"
+          height="250"
+          src={mapUrl}
+          style={{ border: 0 }}
+          loading="lazy"
+        />
+      </div>
+      <div className="mt-2 flex items-center justify-between">
+        <p className="text-sm font-medium flex items-center gap-1.5">
+          <MapPin className="h-4 w-4 text-primary" />
+          {location}, India
+        </p>
+        <p className="text-xs text-muted-foreground flex items-center gap-1">
+          <ShieldCheck className="h-3.5 w-3.5 text-green-600" />
+          Meet safely in a public place
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function MediaItem({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
+  const [isVideo, setIsVideo] = useState(false);
+
+  if (isVideo) {
+    return (
+      // biome-ignore lint/a11y/useMediaCaption: user-generated video content without captions
+      <video
+        src={src}
+        controls
+        className={className}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          background: "#000",
+        }}
+      />
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onError={() => setIsVideo(true)}
+    />
+  );
+}
+
+function MediaThumbnail({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
+  const [isVideo, setIsVideo] = useState(false);
+
+  if (isVideo) {
+    return (
+      <div
+        className={`${className} bg-black flex items-center justify-center relative`}
+      >
+        <Play className="h-5 w-5 text-white opacity-80" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onError={() => setIsVideo(true)}
+    />
+  );
+}
+
+/** Mobile-style top header: back arrow left, share + heart right */
+function MobileDetailHeader({
+  onBack,
+  category,
+}: {
+  onBack: () => void;
+  category?: string;
+}) {
+  const [hearted, setHearted] = useState(false);
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({ url: window.location.href }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied!");
+    }
+  };
+
+  return (
+    <div
+      className="fixed top-0 left-0 right-0 z-[75] bg-white border-b border-gray-100"
+      style={{ minHeight: 56 }}
+    >
+      <div className="flex items-center justify-between h-14 px-4">
+        {/* Back button */}
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors"
+          aria-label="Go back"
+          data-ocid="listing.secondary_button"
+        >
+          <ArrowLeft className="h-5 w-5 text-gray-900" />
+        </button>
+
+        {/* Optional category label */}
+        {category && (
+          <span className="text-sm font-semibold text-gray-700 truncate max-w-[40%]">
+            {category}
+          </span>
+        )}
+
+        {/* Right actions: Share + Heart */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleShare}
+            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Share listing"
+          >
+            <Share2 className="h-5 w-5 text-gray-900" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setHearted((h) => !h);
+              toast.success(
+                hearted ? "Removed from wishlist" : "Saved to wishlist",
+              );
+            }}
+            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Save to wishlist"
+          >
+            <Heart
+              className={`h-5 w-5 transition-colors ${
+                hearted ? "fill-red-500 text-red-500" : "text-gray-900"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Demo listing detail ───────────────────────────────────────────────────────
+function DemoListingDetail({ listingId }: { listingId: string }) {
+  const navigate = useNavigate();
+  const listing = DEMO_LISTINGS.find((d) => d.id === listingId);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [inquiryName, setInquiryName] = useState("");
+  const [inquiryEmail, setInquiryEmail] = useState("");
+  const [inquiryMessage, setInquiryMessage] = useState(
+    "I'm interested in your listing. Please let me know if it's still available.",
+  );
+
+  if (!listing) {
+    return (
+      <>
+        <MobileDetailHeader onBack={() => navigate({ to: "/" })} />
+        <div className="fixed inset-0 z-[60] bg-white overflow-y-auto">
+          <div className="container mx-auto px-4 py-12 max-w-xl text-center pt-20">
+            <Alert variant="destructive" data-ocid="listing.error_state">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>Demo listing not found.</AlertDescription>
+            </Alert>
+            <Button onClick={() => navigate({ to: "/" })} className="mt-4">
+              Back to Browse
+            </Button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const demoPhone = "9876543210";
+  const _demoEmail = "seller@77mobiles.com";
+
+  return (
+    <>
+      {/* Mobile header — sits globally above the content wrapper */}
+      <MobileDetailHeader
+        onBack={() => navigate({ to: -1 as any })}
+        category={CATEGORY_LABELS[listing.category] ?? listing.category}
+      />
+
+      {/* Scrollable content wrapper */}
+      <div className="fixed inset-0 z-[60] bg-white overflow-y-auto">
+        <div className="container mx-auto px-4 py-6 max-w-5xl pb-28 pt-16">
+          <div className="grid md:grid-cols-5 gap-8">
+            {/* Image placeholder — no map inside this column */}
+            <div className="md:col-span-3 space-y-3">
+              <div className="relative aspect-square bg-muted rounded-3xl overflow-hidden border border-border flex items-center justify-center">
+                <span className="text-[7rem] select-none">{listing.emoji}</span>
+                <Badge className="absolute top-3 left-3 bg-blue-500/90 text-white text-xs">
+                  Demo
+                </Badge>
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="md:col-span-2 space-y-5">
+              <div>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h1 className="font-display font-bold text-2xl leading-tight">
+                    {listing.title}
+                  </h1>
+                  <span
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 mt-1 ${conditionClass(listing.condition as any)}`}
+                  >
+                    {conditionLabel(listing.condition as any)}
+                  </span>
+                </div>
+                <p className="text-3xl font-bold text-primary">
+                  {formatPriceFull(BigInt(listing.price))}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  {listing.location}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-4 w-4 text-primary" />
+                  {formatTimeAgo(listing.timestamp)}
+                </span>
+              </div>
+
+              <Badge variant="secondary" className="text-xs">
+                {CATEGORY_LABELS[listing.category] ?? listing.category}
+              </Badge>
+
+              <Separator />
+
+              {/* Description */}
+              <div>
+                <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-2">
+                  Description
+                </h2>
+                <p className="text-sm leading-relaxed text-foreground whitespace-pre-line">
+                  {listing.description}
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Seller */}
+              <div className="flex items-center gap-3 p-3 bg-muted rounded-2xl">
+                <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <User className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">Seller</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium text-sm truncate">
+                      {DEMO_SELLER_NAME}
+                    </p>
+                    <span
+                      className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
+                      title="Identity Verified"
+                    >
+                      <CheckCircle2 className="h-3 w-3" />
+                      Verified
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    124 Followers · 38 Following
+                  </p>
+                </div>
+              </div>
+
+              {/* Email inquiry */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setInquiryOpen((prev) => !prev)}
+                  className="w-full flex items-center justify-center gap-1.5 border border-blue-400 text-blue-600 hover:bg-blue-50 rounded-xl py-2 text-sm font-medium transition-colors"
+                  data-ocid="listing.open_modal_button"
+                >
+                  <Mail className="h-4 w-4" />
+                  {inquiryOpen ? "Close Inquiry Form" : "Send Email Inquiry"}
+                </button>
+                {inquiryOpen && (
+                  <div
+                    className="border border-blue-100 rounded-2xl p-4 bg-blue-50/50 space-y-3"
+                    data-ocid="listing.dialog"
+                  >
+                    <p className="text-xs text-muted-foreground">
+                      Your message will be sent to the seller. Their email
+                      address is kept private.
+                    </p>
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Your name"
+                        value={inquiryName}
+                        onChange={(e) => setInquiryName(e.target.value)}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        data-ocid="listing.input"
+                      />
+                      <input
+                        type="email"
+                        placeholder="Your email"
+                        value={inquiryEmail}
+                        onChange={(e) => setInquiryEmail(e.target.value)}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        data-ocid="listing.input"
+                      />
+                      <textarea
+                        rows={3}
+                        placeholder="Your message"
+                        value={inquiryMessage}
+                        onChange={(e) => setInquiryMessage(e.target.value)}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                        data-ocid="listing.textarea"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!inquiryName.trim() || !inquiryEmail.trim()) {
+                          toast.error("Please fill in your name and email");
+                          return;
+                        }
+                        toast.success("Inquiry sent successfully!");
+                        setInquiryOpen(false);
+                        setInquiryName("");
+                        setInquiryEmail("");
+                        setInquiryMessage(
+                          "I'm interested in your listing. Please let me know if it's still available.",
+                        );
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 bg-primary text-primary-foreground hover:opacity-90 rounded-xl py-2.5 text-sm font-semibold transition-opacity"
+                      data-ocid="listing.submit_button"
+                    >
+                      <Send className="h-4 w-4" />
+                      Send Inquiry
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Seller's Location — placed after the Contact/Email block */}
+          <SellerLocationMap location={listing.location} />
+
+          {/* Divider above sticky footer */}
+          <div className="mt-6 border-t border-gray-200" />
+        </div>
+      </div>
+
+      {/* Sticky action footer — OUTSIDE the fixed inset-0 wrapper so it's globally above it */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-[80] bg-white border-t border-gray-200 p-3 flex gap-2"
+        data-ocid="listing.panel"
+      >
+        <button
+          type="button"
+          onClick={() =>
+            navigate({ to: "/chat", search: { listingId: listing.id } } as any)
+          }
+          className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 text-base font-bold transition-colors shadow-md"
+          data-ocid="listing.primary_button"
+        >
+          <MessageCircle className="h-5 w-5" />
+          Chat
+        </button>
+        <a href={`tel:+91${demoPhone}`} className="flex-1">
+          <button
+            type="button"
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 text-base font-bold transition-colors shadow-md"
+            data-ocid="listing.secondary_button"
+          >
+            <Phone className="h-5 w-5" />
+            Call
+          </button>
+        </a>
+      </div>
+    </>
+  );
+}
+
+// ── Real listing detail ───────────────────────────────────────────────────────
+export default function ListingDetailPage() {
+  const { listingId } = useParams({ strict: false }) as { listingId: string };
+
+  if (listingId?.startsWith("demo-")) {
+    return <DemoListingDetail listingId={listingId} />;
+  }
+
+  return <RealListingDetail listingId={listingId} />;
+}
+
+function RealListingDetail({ listingId }: { listingId: string }) {
+  const navigate = useNavigate();
+  const { identity, login } = useInternetIdentity();
+  const isAuthenticated = !!identity;
+
+  const { data: listing, isLoading, isError } = useGetListing(listingId);
+  const [activeImage, setActiveImage] = useState(0);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [inquiryName, setInquiryName] = useState("");
+  const [inquiryEmail, setInquiryEmail] = useState("");
+  const [inquiryMessage, setInquiryMessage] = useState(
+    "I'm interested in your listing. Please let me know if it's still available.",
+  );
+
+  const { data: sellerProfile } = useGetSellerProfile(
+    listing?.seller.toString() ?? "",
+  );
+
+  const isMySelling =
+    isAuthenticated &&
+    listing?.seller.toString() === identity?.getPrincipal().toString();
+
+  const handleCallSeller = () => {
+    const phone = sellerProfile?.phone;
+    if (!phone || phone.trim() === "") {
+      toast.info("Seller hasn't added a phone number yet");
+      return;
+    }
+    const normalized = phone.replace(/\D/g, "");
+    window.location.href = `tel:+${normalized.startsWith("91") ? normalized : `91${normalized}`}`;
+  };
+
+  const handleOpenChat = () => {
+    if (!isAuthenticated) {
+      toast.error("Please login to message the seller");
+      login();
+      return;
+    }
+    navigate({ to: "/chat", search: { listingId } } as any);
+  };
+
+  if (isLoading) {
+    return (
+      <>
+        <div className="fixed top-0 left-0 right-0 z-[75] bg-white border-b border-gray-100 h-14" />
+        <div className="fixed inset-0 z-[60] bg-white overflow-y-auto">
+          <div className="container mx-auto px-4 py-6 max-w-5xl pt-20">
+            <div className="grid md:grid-cols-2 gap-8">
+              <Skeleton className="aspect-square rounded-xl" />
+              <div className="space-y-4">
+                <Skeleton className="h-7 w-3/4" />
+                <Skeleton className="h-8 w-1/3" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (isError || !listing) {
+    return (
+      <>
+        <MobileDetailHeader onBack={() => navigate({ to: "/" })} />
+        <div className="fixed inset-0 z-[60] bg-white overflow-y-auto">
+          <div className="container mx-auto px-4 py-12 max-w-xl text-center pt-20">
+            <Alert variant="destructive" data-ocid="listing.error_state">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Listing not found or unavailable.
+              </AlertDescription>
+            </Alert>
+            <Button onClick={() => navigate({ to: "/" })} className="mt-4">
+              Back to Browse
+            </Button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const images = listing.images.map((img) => img.getDirectURL());
+
+  const modelMatch = listing.description.match(/^\[Model: (.+?)\]\n/);
+  const modelLabel = modelMatch ? modelMatch[1] : null;
+  const cleanDescription = listing.description
+    .replace(/^\[Model: .+?\]\n/, "")
+    .replace(/^\[Featured\]\n/, "")
+    .replace(/\[WhatsApp: .+?\]\n/, "");
+
+  return (
+    <>
+      {/* Mobile header — globally above content wrapper */}
+      <MobileDetailHeader
+        onBack={() => navigate({ to: -1 as any })}
+        category={CATEGORY_LABELS[listing.category] ?? listing.category}
+      />
+
+      {/* Scrollable content wrapper */}
+      <div className="fixed inset-0 z-[60] bg-white overflow-y-auto">
+        <div className="container mx-auto px-4 py-6 max-w-5xl pb-28 pt-16">
+          <div className="grid md:grid-cols-5 gap-8">
+            {/* Images / Videos */}
+            <div className="md:col-span-3 space-y-3">
+              <div className="relative aspect-square bg-muted rounded-3xl overflow-hidden border border-border">
+                {images.length > 0 ? (
+                  <MediaItem
+                    src={images[activeImage]}
+                    alt={listing.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-7xl opacity-20">
+                    📱
+                  </div>
+                )}
+                {images.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setActiveImage((i) => Math.max(0, i - 1))}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
+                      aria-label="Previous image"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActiveImage((i) =>
+                          Math.min(images.length - 1, i + 1),
+                        )
+                      }
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
+                      aria-label="Next image"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+              {/* Thumbnails */}
+              {images.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {images.map((url, i) => (
+                    <button
+                      type="button"
+                      key={url}
+                      onClick={() => setActiveImage(i)}
+                      className={`shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors ${
+                        i === activeImage
+                          ? "border-primary"
+                          : "border-transparent hover:border-border"
+                      }`}
+                    >
+                      <MediaThumbnail
+                        src={url}
+                        alt={`Thumbnail ${i + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Details */}
+            <div className="md:col-span-2 space-y-5">
+              <div>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h1 className="font-display font-bold text-2xl leading-tight">
+                    {listing.title}
+                  </h1>
+                  <span
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 mt-1 ${conditionClass(listing.condition)}`}
+                  >
+                    {conditionLabel(listing.condition)}
+                  </span>
+                </div>
+                {modelLabel && (
+                  <Badge variant="outline" className="mb-2 text-xs">
+                    {modelLabel}
+                  </Badge>
+                )}
+                <p className="text-3xl font-bold text-primary">
+                  {formatPriceFull(listing.price)}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  {listing.location}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-4 w-4 text-primary" />
+                  {formatTimeAgo(listing.timestamp)}
+                </span>
+              </div>
+
+              <Badge variant="secondary" className="text-xs">
+                {CATEGORY_LABELS[listing.category] ?? listing.category}
+              </Badge>
+
+              {/* Description */}
+              <div>
+                <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-2">
+                  Description
+                </h2>
+                <p className="text-sm leading-relaxed text-foreground whitespace-pre-line">
+                  {cleanDescription}
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Seller */}
+              <div className="flex items-center gap-3 p-3 bg-muted rounded-2xl">
+                <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <User className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">Seller</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium text-sm truncate">
+                      {sellerProfile?.name ||
+                        `${listing.seller.toString().slice(0, 12)}...`}
+                    </p>
+                    {sellerProfile?.isVerified && (
+                      <span
+                        className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
+                        title="Identity Verified"
+                      >
+                        <CheckCircle2 className="h-3 w-3" />
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    87 Followers · 24 Following
+                  </p>
+                </div>
+              </div>
+
+              {isMySelling && (
+                <div className="text-center p-3 bg-muted rounded-2xl">
+                  <p className="text-sm text-muted-foreground">
+                    This is your listing
+                  </p>
+                  <Link to="/profile">
+                    <Button variant="outline" size="sm" className="mt-2">
+                      Manage in Profile
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
+              {/* Email inquiry */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setInquiryOpen((prev) => !prev)}
+                  className="w-full flex items-center justify-center gap-1.5 border border-blue-400 text-blue-600 hover:bg-blue-50 rounded-xl py-2 text-sm font-medium transition-colors"
+                  data-ocid="listing.open_modal_button"
+                >
+                  <Mail className="h-4 w-4" />
+                  {inquiryOpen ? "Close Inquiry Form" : "Send Email Inquiry"}
+                </button>
+                {inquiryOpen && (
+                  <div
+                    className="border border-blue-100 rounded-2xl p-4 bg-blue-50/50 space-y-3"
+                    data-ocid="listing.dialog"
+                  >
+                    <p className="text-xs text-muted-foreground">
+                      Your message will be sent to the seller. Their email
+                      address is kept private.
+                    </p>
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Your name"
+                        value={inquiryName}
+                        onChange={(e) => setInquiryName(e.target.value)}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        data-ocid="listing.input"
+                      />
+                      <input
+                        type="email"
+                        placeholder="Your email"
+                        value={inquiryEmail}
+                        onChange={(e) => setInquiryEmail(e.target.value)}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        data-ocid="listing.input"
+                      />
+                      <textarea
+                        rows={3}
+                        placeholder="Your message"
+                        value={inquiryMessage}
+                        onChange={(e) => setInquiryMessage(e.target.value)}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                        data-ocid="listing.textarea"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!inquiryName.trim() || !inquiryEmail.trim()) {
+                          toast.error("Please fill in your name and email");
+                          return;
+                        }
+                        toast.success("Inquiry sent successfully!");
+                        setInquiryOpen(false);
+                        setInquiryName("");
+                        setInquiryEmail("");
+                        setInquiryMessage(
+                          "I'm interested in your listing. Please let me know if it's still available.",
+                        );
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 bg-primary text-primary-foreground hover:opacity-90 rounded-xl py-2.5 text-sm font-semibold transition-opacity"
+                      data-ocid="listing.submit_button"
+                    >
+                      <Send className="h-4 w-4" />
+                      Send Inquiry
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Seller's Location — after Contact/Email block */}
+          <SellerLocationMap location={listing.location} />
+
+          {/* Divider above sticky footer */}
+          <div className="mt-6 border-t border-gray-200" />
+        </div>
+      </div>
+
+      {/* Sticky action footer — OUTSIDE the fixed inset-0 wrapper, globally above it */}
+      {!isMySelling && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-[80] bg-white border-t border-gray-200 p-3 flex gap-2"
+          data-ocid="listing.panel"
+        >
+          <button
+            type="button"
+            onClick={handleOpenChat}
+            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 text-base font-bold transition-colors shadow-md"
+            data-ocid="listing.primary_button"
+          >
+            <MessageCircle className="h-5 w-5" />
+            Chat
+          </button>
+          <button
+            type="button"
+            onClick={handleCallSeller}
+            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 text-base font-bold transition-colors shadow-md"
+            data-ocid="listing.secondary_button"
+          >
+            <Phone className="h-5 w-5" />
+            Call
+          </button>
+        </div>
+      )}
+    </>
+  );
+}

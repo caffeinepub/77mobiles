@@ -423,9 +423,9 @@ function StepBar({ step }: { step: number }) {
               <div
                 className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                   active
-                    ? "bg-lime-500 text-white shadow-md shadow-lime-200"
+                    ? "bg-purple-500 text-white shadow-md shadow-purple-200"
                     : done
-                      ? "bg-lime-100 text-lime-600 border-2 border-lime-300"
+                      ? "bg-purple-100 text-purple-600 border-2 border-purple-300"
                       : "bg-gray-100 text-gray-400"
                 }`}
               >
@@ -434,9 +434,9 @@ function StepBar({ step }: { step: number }) {
               <span
                 className={`text-[10px] mt-1 font-medium hidden sm:block ${
                   active
-                    ? "text-lime-600"
+                    ? "text-purple-600"
                     : done
-                      ? "text-lime-400"
+                      ? "text-purple-400"
                       : "text-gray-400"
                 }`}
               >
@@ -446,7 +446,7 @@ function StepBar({ step }: { step: number }) {
             {i < steps.length - 1 && (
               <div
                 className={`h-0.5 flex-1 mx-1 rounded-full transition-colors ${
-                  step > idx ? "bg-lime-300" : "bg-gray-200"
+                  step > idx ? "bg-purple-300" : "bg-gray-200"
                 }`}
               />
             )}
@@ -587,7 +587,7 @@ export default function InstantBuyPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-lime-50/60 to-background">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50/60 to-background">
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <AnimatePresence mode="wait">
           {/* ── Step 3: Diagnostics ────────────────────────────────────── */}
@@ -607,15 +607,15 @@ export default function InstantBuyPage() {
                     <div
                       className={`h-1 rounded-full transition-all ${
                         diag.subStep > i
-                          ? "bg-lime-500"
+                          ? "bg-purple-500"
                           : diag.subStep === i
-                            ? "bg-lime-400"
+                            ? "bg-purple-400"
                             : "bg-gray-200"
                       }`}
                     />
                     <p
                       className={`text-[10px] mt-1 font-medium ${
-                        diag.subStep === i ? "text-lime-600" : "text-gray-400"
+                        diag.subStep === i ? "text-purple-600" : "text-gray-400"
                       }`}
                     >
                       {label}
@@ -702,8 +702,8 @@ export default function InstantBuyPage() {
                           data-ocid={`instant_buy.item.${i + 1}`}
                           className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 text-left transition-all ${
                             diag.physicalCondition === cond.id
-                              ? "border-lime-500 bg-lime-50"
-                              : "border-gray-200 bg-white hover:border-lime-200"
+                              ? "border-purple-500 bg-purple-50"
+                              : "border-gray-200 bg-white hover:border-purple-200"
                           }`}
                         >
                           <div>
@@ -751,15 +751,15 @@ export default function InstantBuyPage() {
                           data-ocid={`instant_buy.checkbox.${i + 1}`}
                           className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                             diag.hardwareFaults.includes(fault.id)
-                              ? "border-lime-500 bg-lime-50"
-                              : "border-gray-200 bg-white hover:border-lime-200"
+                              ? "border-purple-500 bg-purple-50"
+                              : "border-gray-200 bg-white hover:border-purple-200"
                           }`}
                         >
                           <Checkbox
                             id={`fault-${fault.id}`}
                             checked={diag.hardwareFaults.includes(fault.id)}
                             onCheckedChange={() => toggleFault(fault.id)}
-                            className="data-[state=checked]:bg-lime-500 data-[state=checked]:border-lime-500"
+                            className="data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
                           />
                           <span className="flex-1 text-sm font-medium">
                             {fault.label}
@@ -804,7 +804,7 @@ export default function InstantBuyPage() {
                     }
                   }}
                   disabled={!canAdvanceDiag()}
-                  className="bg-lime-500 hover:bg-lime-600 text-white rounded-2xl px-8"
+                  className="bg-purple-500 hover:bg-purple-600 text-white rounded-2xl px-8"
                   data-ocid="instant_buy.submit_button"
                 >
                   {diag.subStep < 2 ? "Next" : "See My Quote"}{" "}
@@ -893,7 +893,7 @@ export default function InstantBuyPage() {
                 <Button
                   size="lg"
                   onClick={() => setStep(5)}
-                  className="bg-lime-500 hover:bg-lime-600 text-white rounded-2xl gap-2 text-base font-semibold w-full"
+                  className="bg-purple-500 hover:bg-purple-600 text-white rounded-2xl gap-2 text-base font-semibold w-full"
                   data-ocid="instant_buy.primary_button"
                 >
                   <PackageCheck className="h-5 w-5" />
@@ -1072,7 +1072,7 @@ export default function InstantBuyPage() {
                     !pickup.date ||
                     !pickup.timeSlot
                   }
-                  className="bg-lime-500 hover:bg-lime-600 text-white rounded-2xl px-8"
+                  className="bg-purple-500 hover:bg-purple-600 text-white rounded-2xl px-8"
                   data-ocid="instant_buy.submit_button"
                 >
                   {isSubmitting ? (
@@ -1105,7 +1105,7 @@ export default function InstantBuyPage() {
                 Booking Confirmed! 🎉
               </h2>
               {bookingId && (
-                <p className="text-xs font-mono bg-lime-50 border border-lime-200 rounded-lg px-3 py-1.5 inline-block mb-3 text-lime-700">
+                <p className="text-xs font-mono bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5 inline-block mb-3 text-purple-700">
                   Booking ID: #{bookingId}
                 </p>
               )}
@@ -1113,7 +1113,7 @@ export default function InstantBuyPage() {
                 Our team will arrive at your location for pickup
               </p>
 
-              <div className="bg-lime-50 border border-lime-200 rounded-2xl p-5 text-left space-y-3 mb-7">
+              <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 text-left space-y-3 mb-7">
                 {quote && (
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">
@@ -1141,7 +1141,7 @@ export default function InstantBuyPage() {
 
               <Link to="/">
                 <Button
-                  className="bg-lime-500 hover:bg-lime-600 text-white rounded-2xl px-10"
+                  className="bg-purple-500 hover:bg-purple-600 text-white rounded-2xl px-10"
                   data-ocid="instant_buy.primary_button"
                 >
                   Back to Home

@@ -28,6 +28,7 @@ export default function Footer() {
             </Link>
             <Link
               to="/messages"
+              search={{}}
               className="hover:text-primary transition-colors"
             >
               Messages

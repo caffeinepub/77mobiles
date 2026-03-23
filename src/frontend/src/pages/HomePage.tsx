@@ -4,33 +4,51 @@ import { Button } from "@/components/ui/button";
 import { Link, useSearch } from "@tanstack/react-router";
 import {
   AlertCircle,
-  ArrowRight,
-  BadgeCheck,
+  MapPin,
   PlusCircle,
-  Sparkles,
+  Search,
   Truck,
+  X,
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import GeoFilterBar from "../components/GeoFilterBar";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import FiltersBar from "../components/FiltersBar";
 import ListingCard, { ListingCardSkeleton } from "../components/ListingCard";
+import PromoBannerCarousel from "../components/PromoBannerCarousel";
 import { DEMO_LISTINGS, type DemoListing } from "../data/demoListings";
 import { ListingCategory, useListings } from "../hooks/useQueries";
 import type { Listing } from "../hooks/useQueries";
 import { haversine, parseGeoLocation } from "../utils/geo";
 
+// SVG icons matching the line-art style of Phones/Watches
+function GridIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-label="All categories"
+      role="img"
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
 const CATEGORIES = [
-  { id: "all", label: "All", icon: "🗂️", emoji: "🗂️" },
-  { id: ListingCategory.phones, label: "Phones", icon: "📱", emoji: "📱" },
-  { id: ListingCategory.macbooks, label: "MacBooks", icon: "💻", emoji: "💻" },
-  { id: ListingCategory.watches, label: "Watches", icon: "⌚", emoji: "⌚" },
-  {
-    id: ListingCategory.earphones,
-    label: "Earphones",
-    icon: "🎧",
-    emoji: "🎧",
-  },
+  { id: "all", label: "All", useGridIcon: true },
+  { id: ListingCategory.phones, label: "Phones", emoji: "📱" },
+  { id: ListingCategory.macbooks, label: "MacBooks", emoji: "💻" },
+  { id: ListingCategory.watches, label: "Watches", emoji: "⌚" },
+  { id: ListingCategory.earphones, label: "Earphones", emoji: "🎧" },
 ] as const;
 
 type CategoryId = (typeof CATEGORIES)[number]["id"];
@@ -41,64 +59,49 @@ interface GeoFilter {
   radiusKm: number;
 }
 
-function SellTo77Section() {
-  const badges = [
-    { icon: Zap, label: "Instant Payment" },
-    { icon: Truck, label: "Free Pickup" },
-    { icon: BadgeCheck, label: "Best Price" },
-  ];
-
+// ── Sell Instant Banner (white + blue) ────────────────────────────────────────
+function SellInstantBanner() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: -20 }}
+      initial={{ opacity: 0, y: -16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.55 }}
-      className="relative rounded-3xl overflow-hidden mb-6 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 shadow-xl shadow-indigo-300 p-5 sm:p-6 text-center"
+      transition={{ duration: 0.5 }}
+      className="relative rounded-2xl overflow-hidden mb-3 bg-white border border-blue-100 shadow-sm px-4 py-3"
       data-ocid="sell77.panel"
     >
-      {/* Decorative blobs */}
-      <div className="absolute -top-16 -right-16 h-36 w-36 rounded-full bg-white/20 blur-3xl" />
-      <div className="absolute -bottom-12 -left-12 h-28 w-28 rounded-full bg-violet-300/30 blur-3xl" />
-
-      <div className="relative">
-        {/* Badge */}
-        <span className="inline-flex items-center gap-1.5 bg-white/25 text-white text-[11px] font-semibold px-4 py-1.5 rounded-full mb-3">
-          <Sparkles className="h-3 w-3" /> Instant Buy-Back
-        </span>
-
-        <h2 className="font-display font-bold text-xl sm:text-2xl text-white leading-tight mb-2">
-          Sell Your Device to <span className="text-indigo-200">77mobiles</span>
-          <br />
-          in 30 Mins
-        </h2>
-        <p className="text-white/90 text-sm mb-4">
-          Get an instant price offer — no haggling, no waiting
-        </p>
-
-        <Link to="/instant-buy">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="font-bold text-sm sm:text-base leading-tight text-gray-900">
+            Check Your <span className="text-blue-600">Phone's Value</span>
+          </h2>
+          <p className="text-gray-500 text-xs mt-0.5">
+            Get the best price for your device
+          </p>
+          <div className="flex items-center gap-3 mt-1.5">
+            {[
+              { icon: Zap, label: "Instant Payment" },
+              { icon: Truck, label: "Free Pickup" },
+            ].map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex items-center gap-1 text-[10px] font-medium text-gray-400"
+              >
+                <Icon className="h-3 w-3 text-blue-500" />
+                {label}
+              </div>
+            ))}
+          </div>
+        </div>
+        <Link to="/instant-buy" className="shrink-0">
           <Button
             type="button"
             size="sm"
-            className="bg-white text-indigo-700 hover:bg-indigo-50 font-bold rounded-2xl px-6 shadow-lg gap-2"
+            className="bg-blue-600 text-white hover:bg-blue-700 font-bold rounded-xl px-5 text-xs h-9 border-0 shadow-sm"
             data-ocid="sell77.primary_button"
           >
-            <Sparkles className="h-4 w-4" />
-            Sell Now
-            <ArrowRight className="h-4 w-4" />
+            Check Price
           </Button>
         </Link>
-
-        <div className="flex flex-wrap justify-center gap-3 mt-4">
-          {badges.map(({ icon: Icon, label }) => (
-            <div
-              key={label}
-              className="flex items-center gap-2 bg-white/25 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-medium text-white"
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </div>
-          ))}
-        </div>
       </div>
     </motion.div>
   );
@@ -108,11 +111,36 @@ export default function HomePage() {
   const searchParams = useSearch({ strict: false }) as { q?: string };
   const [category, setCategory] = useState<CategoryId>("all");
   const [searchQuery, setSearchQuery] = useState(searchParams.q ?? "");
-  const [geoFilter, setGeoFilter] = useState<GeoFilter | null>(null);
+  const [inputValue, setInputValue] = useState(searchParams.q ?? "");
+  const [geoFilter] = useState<GeoFilter | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string>(() => {
+    return localStorage.getItem("userLocation") ?? "";
+  });
+
+  const [brandFilter, setBrandFilter] = useState<string | null>(null);
+  const [conditionFilter, setConditionFilter] = useState<string | null>(null);
+  const [budgetFilter, setBudgetFilter] = useState<{
+    min: number;
+    max: number;
+  } | null>(null);
+  const [sortOrder, setSortOrder] = useState<
+    "newest" | "price_asc" | "price_desc"
+  >("newest");
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSearchQuery(searchParams.q ?? "");
+    setInputValue(searchParams.q ?? "");
   }, [searchParams.q]);
+
+  useEffect(() => {
+    const handler = () => {
+      setSelectedCity(localStorage.getItem("userLocation") ?? "");
+    };
+    window.addEventListener("locationChanged", handler);
+    return () => window.removeEventListener("locationChanged", handler);
+  }, []);
 
   const {
     data: listings,
@@ -120,24 +148,34 @@ export default function HomePage() {
     isError,
   } = useListings(searchQuery ? "all" : (category as any), searchQuery);
 
-  const handleGeoFilterChange = useCallback((filter: GeoFilter | null) => {
-    setGeoFilter(filter);
-  }, []);
+  const handleGeoFilterChange = useCallback(() => {}, []);
+  void handleGeoFilterChange;
 
   const filteredListings = useMemo(() => {
     if (!listings) return listings;
-    if (!geoFilter) return listings;
-    return listings.filter((listing) => {
-      const parsed = parseGeoLocation(listing.location);
-      if (parsed) {
-        return (
-          haversine(geoFilter.lat, geoFilter.lon, parsed.lat, parsed.lon) <=
-          geoFilter.radiusKm
-        );
-      }
-      return true;
-    });
-  }, [listings, geoFilter]);
+    let result = listings;
+    if (selectedCity) {
+      result = result.filter((listing) => {
+        if (!listing.location) return true;
+        return listing.location
+          .toLowerCase()
+          .includes(selectedCity.toLowerCase());
+      });
+    }
+    if (geoFilter) {
+      result = result.filter((listing) => {
+        const parsed = parseGeoLocation(listing.location);
+        if (parsed) {
+          return (
+            haversine(geoFilter.lat, geoFilter.lon, parsed.lat, parsed.lon) <=
+            geoFilter.radiusKm
+          );
+        }
+        return true;
+      });
+    }
+    return result;
+  }, [listings, geoFilter, selectedCity]);
 
   const filteredDemos = useMemo(() => {
     let demos: DemoListing[] = DEMO_LISTINGS;
@@ -150,6 +188,12 @@ export default function HomePage() {
       );
     } else if (category !== "all") {
       demos = demos.filter((d) => d.category === (category as string));
+    }
+    if (selectedCity) {
+      demos = demos.filter((d) => {
+        if (!d.location) return true;
+        return d.location.toLowerCase().includes(selectedCity.toLowerCase());
+      });
     }
     if (geoFilter) {
       demos = demos.filter((d) => {
@@ -164,138 +208,236 @@ export default function HomePage() {
       });
     }
     return demos;
-  }, [category, searchQuery, geoFilter]);
+  }, [category, searchQuery, geoFilter, selectedCity]);
 
   const displayListings = filteredListings;
-  const geoFilteredCount =
-    geoFilter && listings && filteredListings
-      ? listings.length - filteredListings.length
-      : 0;
 
-  const allItems = useMemo(
-    () => [...(displayListings ?? []), ...filteredDemos],
-    [displayListings, filteredDemos],
-  );
+  const allItems = useMemo(() => {
+    let items: (Listing | DemoListing)[] = [
+      ...(displayListings ?? []),
+      ...filteredDemos,
+    ];
+
+    if (brandFilter) {
+      const bLower = brandFilter.toLowerCase();
+      items = items.filter(
+        (item) =>
+          item.title.toLowerCase().includes(bLower) ||
+          item.description.toLowerCase().includes(bLower),
+      );
+    }
+
+    if (conditionFilter) {
+      items = items.filter((item) => {
+        const cond = (item as any).condition;
+        if (!cond) return true;
+        return cond.toLowerCase().includes(conditionFilter.toLowerCase());
+      });
+    }
+
+    if (budgetFilter) {
+      items = items.filter((item) => {
+        const price = Number(String(item.price).replace(/[^0-9.]/g, ""));
+        if (Number.isNaN(price)) return true;
+        return (
+          price >= budgetFilter.min &&
+          price <=
+            (budgetFilter.max === Number.POSITIVE_INFINITY
+              ? Number.MAX_SAFE_INTEGER
+              : budgetFilter.max)
+        );
+      });
+    }
+
+    if (sortOrder === "price_asc") {
+      items = [...items].sort((a, b) => {
+        const pa = Number(String(a.price).replace(/[^0-9.]/g, ""));
+        const pb = Number(String(b.price).replace(/[^0-9.]/g, ""));
+        return pa - pb;
+      });
+    } else if (sortOrder === "price_desc") {
+      items = [...items].sort((a, b) => {
+        const pa = Number(String(a.price).replace(/[^0-9.]/g, ""));
+        const pb = Number(String(b.price).replace(/[^0-9.]/g, ""));
+        return pb - pa;
+      });
+    }
+
+    return items;
+  }, [
+    displayListings,
+    filteredDemos,
+    brandFilter,
+    conditionFilter,
+    budgetFilter,
+    sortOrder,
+  ]);
+
   const hasItems = !isLoading && allItems.length > 0;
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      {/* Sell to 77mobiles Banner */}
-      <SellTo77Section />
-
-      {/* Hero Bento Card */}
-      <motion.div
-        initial={{ opacity: 0, y: -16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="relative rounded-3xl overflow-hidden mb-6 bg-gradient-to-br from-[oklch(0.92_0.04_220)] via-[oklch(0.95_0.02_240)] to-[oklch(0.96_0.015_258)] p-5 border border-primary/20 shadow-sm"
-      >
-        {/* Decorative soft circles */}
-        <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full bg-primary/8 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 h-32 w-32 rounded-full bg-primary/5 blur-2xl" />
-
-        {/* Subtle ring in corner */}
-        <div className="absolute top-4 right-4 h-16 w-16 rounded-full border-2 border-primary/20 opacity-60" />
-        <div className="absolute top-6 right-6 h-8 w-8 rounded-full border border-primary/30" />
-
-        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
-          <div>
-            <p className="text-primary/70 text-xs font-medium uppercase tracking-widest mb-2 font-mono">
-              India's Premier Gadget Marketplace
-            </p>
-            <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 leading-tight text-foreground">
-              Buy &amp; Sell <span className="text-primary">Gadgets</span>{" "}
-              Locally
-            </h1>
-            <p className="text-muted-foreground text-sm max-w-sm">
-              100% free listings · Phones · MacBooks · Watches · Earphones
-            </p>
+    <div className="min-h-screen bg-[#f5f5f5]">
+      {/* Top section — white bg, sticky */}
+      <div className="bg-white sticky top-0 z-40">
+        {/* Search Bar */}
+        <div className="px-4 pt-3 pb-2">
+          <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-3 h-10">
+            <Search className="h-4 w-4 text-gray-400 shrink-0" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") setSearchQuery(inputValue);
+              }}
+              placeholder="Search phones, MacBooks, watches..."
+              className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none"
+              data-ocid="home.search_input"
+            />
+            {inputValue && (
+              <button
+                type="button"
+                onClick={() => {
+                  setInputValue("");
+                  setSearchQuery("");
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-          <Link to="/post" className="shrink-0">
-            <Button
-              size="lg"
-              className="gap-2 font-semibold bg-primary text-primary-foreground hover:opacity-90 rounded-2xl transition-all duration-300"
-              data-ocid="home.primary_button"
-            >
-              <PlusCircle className="h-5 w-5" />
-              Post Free Ad
-            </Button>
-          </Link>
         </div>
-      </motion.div>
 
-      {/* Category Bento Tiles */}
-      {!searchQuery && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="flex gap-3 overflow-x-auto pb-1 mb-5 scrollbar-hide"
-          data-ocid="home.tab"
-        >
-          {CATEGORIES.map((cat) => (
+        {/* Filters Bar — always visible below search */}
+        <div className="bg-white border-b border-gray-100 px-0">
+          <FiltersBar
+            onBrandChange={setBrandFilter}
+            onConditionChange={setConditionFilter}
+            onBudgetChange={setBudgetFilter}
+            onSortChange={setSortOrder}
+            selectedBrand={brandFilter}
+            selectedCondition={conditionFilter}
+            selectedBudget={budgetFilter}
+            selectedSort={sortOrder}
+          />
+        </div>
+
+        {/* Sell Instant Banner */}
+        <div className="px-4 pb-2">
+          <SellInstantBanner />
+        </div>
+
+        {/* Category Tabs */}
+        {!searchQuery && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-hide"
+            data-ocid="home.tab"
+          >
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setCategory(cat.id as CategoryId)}
+                data-ocid={`home.${cat.id}.tab`}
+                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl border transition-all duration-200 shrink-0 min-w-[64px] ${
+                  category === cat.id
+                    ? "bg-blue-50 border-blue-200 text-blue-700"
+                    : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                }`}
+              >
+                {(cat as any).useGridIcon ? (
+                  <GridIcon
+                    className={`w-5 h-5 ${
+                      category === cat.id ? "text-blue-600" : "text-gray-400"
+                    }`}
+                  />
+                ) : (
+                  <span className="text-lg">{(cat as any).emoji}</span>
+                )}
+                <span className="text-[11px] font-medium">{cat.label}</span>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </div>
+
+      {/* Promo Banner Carousel — edge-to-edge */}
+      <div className="bg-white pb-3">
+        <PromoBannerCarousel />
+      </div>
+
+      {/* Location filter badge */}
+      {selectedCity && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-100">
+          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-full px-3 py-1 text-xs text-blue-700 font-medium">
+            <MapPin className="h-3 w-3" />
+            Showing in <span className="font-bold ml-0.5">{selectedCity}</span>
             <button
-              key={cat.id}
               type="button"
-              onClick={() => setCategory(cat.id as CategoryId)}
-              data-ocid={`home.${cat.id}.tab`}
-              className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl border transition-all duration-200 shrink-0 min-w-[70px] ${
-                category === cat.id
-                  ? "bg-primary/10 border-primary/50 text-primary scale-105 shadow-sm"
-                  : "bg-card border-border hover:border-primary/30 text-muted-foreground hover:text-foreground"
-              }`}
+              onClick={() => setSelectedCity("")}
+              className="ml-1 hover:text-blue-900"
+              data-ocid="home.toggle"
             >
-              <span className="text-xl">{cat.emoji}</span>
-              <span className="text-xs font-medium">{cat.label}</span>
+              <X className="h-3 w-3" />
             </button>
-          ))}
-        </motion.div>
+          </div>
+        </div>
       )}
-
-      {/* Geo Filter Bar */}
-      <GeoFilterBar onFilterChange={handleGeoFilterChange} />
 
       {/* Search results header */}
       {searchQuery && (
-        <div className="mb-4 flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Search results for{" "}
-            <span className="font-medium text-foreground">
+        <div className="px-4 py-2 flex items-center justify-between bg-white border-b border-gray-100">
+          <p className="text-sm text-gray-500">
+            Results for{" "}
+            <span className="font-semibold text-gray-800">
               &ldquo;{searchQuery}&rdquo;
             </span>
             {!isLoading && ` — ${allItems.length} found`}
           </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSearchQuery("")}
-            className="text-xs hover:text-primary"
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setInputValue("");
+            }}
+            className="text-xs text-blue-600 font-medium"
           >
             Clear
-          </Button>
+          </button>
         </div>
       )}
 
-      {/* Geo filter count notice */}
-      {geoFilter && !searchQuery && listings && (
-        <p className="text-xs text-muted-foreground mb-3">
-          Showing{" "}
-          <span className="font-medium text-foreground">{allItems.length}</span>{" "}
-          listings within{" "}
-          <span className="font-medium text-foreground">
-            {geoFilter.radiusKm} km
-          </span>
-          {geoFilteredCount > 0 && (
-            <span> · {geoFilteredCount} hidden outside range</span>
-          )}
-        </p>
-      )}
+      {/* Post Ad CTA row */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-gray-100">
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+          {searchQuery
+            ? "Search Results"
+            : category === "all"
+              ? "All Listings"
+              : category.charAt(0).toUpperCase() + category.slice(1)}
+        </span>
+        <Link to="/post">
+          <Button
+            size="sm"
+            className="gap-1.5 font-semibold bg-blue-600 text-white hover:bg-blue-700 rounded-lg h-7 text-xs px-3"
+            data-ocid="home.primary_button"
+          >
+            <PlusCircle className="h-3.5 w-3.5" />
+            Post Free Ad
+          </Button>
+        </Link>
+      </div>
 
       {/* Error */}
       {isError && (
         <Alert
           variant="destructive"
-          className="mb-4"
+          className="mx-4 my-3"
           data-ocid="home.error_state"
         >
           <AlertCircle className="h-4 w-4" />
@@ -305,34 +447,28 @@ export default function HomePage() {
         </Alert>
       )}
 
-      {/* Listings Bento Grid */}
+      {/* Listings — OLX vertical list, edge-to-edge */}
       {isLoading ? (
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-          data-ocid="home.loading_state"
-        >
+        <div className="bg-white" data-ocid="home.loading_state">
           {[..."12345678"].map((c) => (
-            <ListingCardSkeleton key={c} />
+            <div key={c} className="border-b border-gray-100 px-4 py-3">
+              <ListingCardSkeleton />
+            </div>
           ))}
         </div>
       ) : hasItems ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-auto">
+        <div className="bg-white">
           {allItems.map((item, i) => {
             const isDemo = "isDemo" in item && item.isDemo;
             return (
-              <div
-                key={item.id}
-                className={`relative ${
-                  i === 0 ? "sm:col-span-2 sm:row-span-2" : ""
-                }`}
-              >
+              <div key={item.id} className="relative border-b border-gray-100">
                 <ListingCard
                   listing={item as unknown as Listing}
                   index={i}
                   featured={i === 0}
                 />
                 {isDemo && (
-                  <Badge className="absolute top-4 left-4 z-10 bg-amber-500/90 text-white text-[10px] font-semibold pointer-events-none">
+                  <Badge className="absolute top-3 left-3 z-10 bg-amber-500/90 text-white text-[10px] font-semibold pointer-events-none">
                     Demo
                   </Badge>
                 )}
@@ -344,23 +480,23 @@ export default function HomePage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex flex-col items-center justify-center py-24 text-center"
+          className="flex flex-col items-center justify-center py-24 text-center bg-white mx-4 my-4 rounded-2xl"
           data-ocid="home.empty_state"
         >
-          <span className="text-6xl mb-4">{geoFilter ? "📍" : "📭"}</span>
-          <h3 className="font-display font-semibold text-lg mb-1">
-            {geoFilter ? "No listings nearby" : "No listings yet"}
+          <span className="text-6xl mb-4">{selectedCity ? "📍" : "📭"}</span>
+          <h3 className="font-bold text-lg mb-1 text-gray-800">
+            {selectedCity ? "No listings nearby" : "No listings yet"}
           </h3>
-          <p className="text-muted-foreground text-sm mb-6 max-w-xs">
+          <p className="text-gray-400 text-sm mb-6 max-w-xs">
             {searchQuery
               ? `No results for "${searchQuery}". Try a different search.`
-              : geoFilter
-                ? `No listings found within ${geoFilter.radiusKm} km. Try expanding the radius.`
-                : "Be the first to post a gadget for sale in this category."}
+              : selectedCity
+                ? `No listings found in ${selectedCity}.`
+                : "Be the first to post a gadget for sale."}
           </p>
           <Link to="/post">
             <Button
-              className="gap-1.5 rounded-2xl transition-all"
+              className="gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700"
               data-ocid="home.secondary_button"
             >
               <PlusCircle className="h-4 w-4" />
