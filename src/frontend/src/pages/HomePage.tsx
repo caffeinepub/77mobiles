@@ -324,11 +324,6 @@ export default function HomePage() {
           />
         </div>
 
-        {/* Sell Instant Banner */}
-        <div className="px-4 pb-2">
-          <SellInstantBanner />
-        </div>
-
         {/* Category Tabs */}
         {!searchQuery && (
           <motion.div
@@ -364,6 +359,11 @@ export default function HomePage() {
             ))}
           </motion.div>
         )}
+      </div>
+
+      {/* Sell Instant Banner — below category scroll */}
+      <div className="px-4 pb-2 bg-white">
+        <SellInstantBanner />
       </div>
 
       {/* Promo Banner Carousel — edge-to-edge */}
