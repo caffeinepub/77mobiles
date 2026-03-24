@@ -260,6 +260,16 @@ function DemoListingDetail({ listingId }: { listingId: string }) {
   const navigate = useNavigate();
   const listing = DEMO_LISTINGS.find((d) => d.id === listingId);
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate({ to: -1 as any });
+    } else {
+      navigate({ to: "/" });
+    }
+  };
+
+  const [chatHovered, setChatHovered] = useState(false);
+
   if (!listing) {
     return (
       <>
@@ -286,7 +296,7 @@ function DemoListingDetail({ listingId }: { listingId: string }) {
     <>
       {/* Mobile header — sits globally above the content wrapper */}
       <MobileDetailHeader
-        onBack={() => navigate({ to: -1 as any })}
+        onBack={handleBack}
         category={CATEGORY_LABELS[listing.category] ?? listing.category}
       />
 
@@ -412,27 +422,27 @@ function DemoListingDetail({ listingId }: { listingId: string }) {
                 search: { listingId: listing.id },
               } as any)
             }
+            onMouseEnter={() => setChatHovered(true)}
+            onMouseLeave={() => setChatHovered(false)}
             style={{
               flex: 1,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               gap: "6px",
-              backgroundColor: "#2563eb",
-              color: "#fff",
+              backgroundColor: chatHovered ? "#f3f4f6" : "#ffffff",
+              color: "#3b82f6",
               borderRadius: "12px",
               padding: "14px 0",
               fontSize: "15px",
               fontWeight: 700,
-              border: "none",
+              border: "1px solid #3b82f6",
               cursor: "pointer",
+              transition: "background-color 0.15s",
             }}
             data-ocid="listing.primary_button"
           >
-            <MessageCircle
-              className="h-5 w-5 text-white"
-              style={{ color: "#ffffff" }}
-            />
+            <MessageCircle className="h-5 w-5" style={{ color: "#3b82f6" }} />
             Chat
           </button>
           <a
@@ -525,10 +535,19 @@ function RealListingDetail({ listingId }: { listingId: string }) {
 
   const { data: listing, isLoading, isError } = useGetListing(listingId);
   const [activeImage, setActiveImage] = useState(0);
+  const [chatHovered, setChatHovered] = useState(false);
 
   const { data: sellerProfile } = useGetSellerProfile(
     listing?.seller.toString() ?? "",
   );
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate({ to: -1 as any });
+    } else {
+      navigate({ to: "/" });
+    }
+  };
 
   // Defensive principal comparison — handles both .toText() (IC Principal) and .toString()
   const sellerPrincipal = listing?.seller?.toText
@@ -640,7 +659,7 @@ function RealListingDetail({ listingId }: { listingId: string }) {
     <>
       {/* Mobile header — globally above content wrapper */}
       <MobileDetailHeader
-        onBack={() => navigate({ to: -1 as any })}
+        onBack={handleBack}
         category={CATEGORY_LABELS[listing.category] ?? listing.category}
       />
 
@@ -835,27 +854,27 @@ function RealListingDetail({ listingId }: { listingId: string }) {
             <button
               type="button"
               onClick={handleOpenChat}
+              onMouseEnter={() => setChatHovered(true)}
+              onMouseLeave={() => setChatHovered(false)}
               style={{
                 flex: 1,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "6px",
-                backgroundColor: "#2563eb",
-                color: "#fff",
+                backgroundColor: chatHovered ? "#f3f4f6" : "#ffffff",
+                color: "#3b82f6",
                 borderRadius: "12px",
                 padding: "14px 0",
                 fontSize: "15px",
                 fontWeight: 700,
-                border: "none",
+                border: "1px solid #3b82f6",
                 cursor: "pointer",
+                transition: "background-color 0.15s",
               }}
               data-ocid="listing.primary_button"
             >
-              <MessageCircle
-                className="h-5 w-5 text-white"
-                style={{ color: "#ffffff" }}
-              />
+              <MessageCircle className="h-5 w-5" style={{ color: "#3b82f6" }} />
               Chat
             </button>
             <button
