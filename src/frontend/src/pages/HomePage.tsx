@@ -1,5 +1,4 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link, useSearch } from "@tanstack/react-router";
 import {
@@ -16,7 +15,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FiltersBar from "../components/FiltersBar";
 import ListingCard, { ListingCardSkeleton } from "../components/ListingCard";
 import PromoBannerCarousel from "../components/PromoBannerCarousel";
-import { DEMO_LISTINGS, type DemoListing } from "../data/demoListings";
 import { ListingCategory, useListings } from "../hooks/useQueries";
 import type { Listing } from "../hooks/useQueries";
 import { haversine, parseGeoLocation } from "../utils/geo";
@@ -177,46 +175,8 @@ export default function HomePage() {
     return result;
   }, [listings, geoFilter, selectedCity]);
 
-  const filteredDemos = useMemo(() => {
-    let demos: DemoListing[] = DEMO_LISTINGS;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      demos = demos.filter(
-        (d) =>
-          d.title.toLowerCase().includes(q) ||
-          d.description.toLowerCase().includes(q),
-      );
-    } else if (category !== "all") {
-      demos = demos.filter((d) => d.category === (category as string));
-    }
-    if (selectedCity) {
-      demos = demos.filter((d) => {
-        if (!d.location) return true;
-        return d.location.toLowerCase().includes(selectedCity.toLowerCase());
-      });
-    }
-    if (geoFilter) {
-      demos = demos.filter((d) => {
-        const parsed = parseGeoLocation(d.location);
-        if (parsed) {
-          return (
-            haversine(geoFilter.lat, geoFilter.lon, parsed.lat, parsed.lon) <=
-            geoFilter.radiusKm
-          );
-        }
-        return true;
-      });
-    }
-    return demos;
-  }, [category, searchQuery, geoFilter, selectedCity]);
-
-  const displayListings = filteredListings;
-
   const allItems = useMemo(() => {
-    let items: (Listing | DemoListing)[] = [
-      ...(displayListings ?? []),
-      ...filteredDemos,
-    ];
+    let items: Listing[] = [...(filteredListings ?? [])];
 
     if (brandFilter) {
       const bLower = brandFilter.toLowerCase();
@@ -264,14 +224,7 @@ export default function HomePage() {
     }
 
     return items;
-  }, [
-    displayListings,
-    filteredDemos,
-    brandFilter,
-    conditionFilter,
-    budgetFilter,
-    sortOrder,
-  ]);
+  }, [filteredListings, brandFilter, conditionFilter, budgetFilter, sortOrder]);
 
   const hasItems = !isLoading && allItems.length > 0;
 
@@ -458,23 +411,15 @@ export default function HomePage() {
         </div>
       ) : hasItems ? (
         <div className="bg-white">
-          {allItems.map((item, i) => {
-            const isDemo = "isDemo" in item && item.isDemo;
-            return (
-              <div key={item.id} className="relative border-b border-gray-100">
-                <ListingCard
-                  listing={item as unknown as Listing}
-                  index={i}
-                  featured={i === 0}
-                />
-                {isDemo && (
-                  <Badge className="absolute top-3 left-3 z-10 bg-amber-500/90 text-white text-[10px] font-semibold pointer-events-none">
-                    Demo
-                  </Badge>
-                )}
-              </div>
-            );
-          })}
+          {allItems.map((item, i) => (
+            <div key={item.id} className="relative border-b border-gray-100">
+              <ListingCard
+                listing={item as unknown as Listing}
+                index={i}
+                featured={i === 0}
+              />
+            </div>
+          ))}
         </div>
       ) : (
         <motion.div

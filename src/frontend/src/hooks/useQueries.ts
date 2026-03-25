@@ -42,7 +42,8 @@ export function useListings(category: ListingCategory | "all", search = "") {
       return actor.filterByCategory(category);
     },
     enabled: !!actor && !isFetching,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchInterval: 10_000,
   });
 }
 

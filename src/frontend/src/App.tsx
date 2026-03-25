@@ -5,16 +5,18 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
-  useLocation,
   useNavigate,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
 import BottomNav from "./components/BottomNav";
 import Footer from "./components/Footer";
 import LocationGateModal from "./components/LocationGateModal";
 import Navbar from "./components/Navbar";
-import ProfileSetupModal from "./components/ProfileSetupModal";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
-import { useGetCallerUserProfile } from "./hooks/useQueries";
+import {
+  useGetCallerUserProfile,
+  useSaveUserProfile,
+} from "./hooks/useQueries";
 import AccessoriesStorePage from "./pages/AccessoriesStorePage";
 import AdminPage from "./pages/AdminPage";
 import B2BBuyerPage from "./pages/B2BBuyerPage";
@@ -22,7 +24,6 @@ import B2BSellerPage from "./pages/B2BSellerPage";
 import ChatScreen from "./pages/ChatScreen";
 import DealerDashboardPage from "./pages/DealerDashboardPage";
 import DealerSignupPage from "./pages/DealerSignupPage";
-import DemoPage from "./pages/DemoPage";
 import HomePage from "./pages/HomePage";
 import InstantBuyPage from "./pages/InstantBuyPage";
 import ListingDetailPage from "./pages/ListingDetailPage";
@@ -37,8 +38,22 @@ import VendorDashboardPage from "./pages/VendorDashboardPage";
 function RootLayout() {
   const { identity } = useInternetIdentity();
   const { data: profile, isFetched, isLoading } = useGetCallerUserProfile();
+  const { mutate: saveProfile } = useSaveUserProfile();
   const showProfileSetup =
     !!identity && !isLoading && isFetched && profile === null;
+
+  useEffect(() => {
+    if (showProfileSetup && identity) {
+      const principalStr = identity.getPrincipal().toString();
+      const shortId = principalStr.replace(/-/g, "").slice(0, 6);
+      saveProfile({
+        name: `User_${shortId}`,
+        phone: "",
+        isVerified: false,
+        aadhaarHash: "",
+      });
+    }
+  }, [showProfileSetup, identity, saveProfile]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -48,7 +63,6 @@ function RootLayout() {
       </main>
       <BottomNav />
       <Footer />
-      {showProfileSetup && <ProfileSetupModal />}
       <LocationGateModal />
       <Toaster richColors position="top-right" />
     </div>
@@ -100,11 +114,6 @@ const chatRoute = createRoute({
   ): { listingId?: string } => ({
     listingId: (search.listingId as string) ?? undefined,
   }),
-});
-const demoRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/demo",
-  component: DemoPage,
 });
 const instantBuyRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -190,7 +199,6 @@ const routeTree = rootRoute.addChildren([
   myAdsRoute,
   messagesRoute,
   chatRoute,
-  demoRoute,
   instantBuyRoute,
   adminRoute,
   b2bRoute,
