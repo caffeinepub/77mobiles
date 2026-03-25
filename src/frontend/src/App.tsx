@@ -24,6 +24,7 @@ import B2BSellerPage from "./pages/B2BSellerPage";
 import ChatScreen from "./pages/ChatScreen";
 import DealerDashboardPage from "./pages/DealerDashboardPage";
 import DealerSignupPage from "./pages/DealerSignupPage";
+import EVChargingPage from "./pages/EVChargingPage";
 import HomePage from "./pages/HomePage";
 import InstantBuyPage from "./pages/InstantBuyPage";
 import ListingDetailPage from "./pages/ListingDetailPage";
@@ -35,12 +36,23 @@ import PostAdPage from "./pages/PostAdPage";
 import ProfilePage from "./pages/ProfilePage";
 import VendorDashboardPage from "./pages/VendorDashboardPage";
 
+const DEALER_MODE_KEY = "77mobiles_dealer_mode";
+
 function RootLayout() {
   const { identity } = useInternetIdentity();
   const { data: profile, isFetched, isLoading } = useGetCallerUserProfile();
   const { mutate: saveProfile } = useSaveUserProfile();
+  const navigate = useNavigate();
   const showProfileSetup =
     !!identity && !isLoading && isFetched && profile === null;
+
+  // Dealer mode persistence: on mount, check localStorage and redirect
+  useEffect(() => {
+    const isDealerMode = localStorage.getItem(DEALER_MODE_KEY);
+    if (isDealerMode === "true") {
+      navigate({ to: "/dealer" });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     if (showProfileSetup && identity) {
@@ -165,6 +177,11 @@ const loginRoute = createRoute({
   path: "/login",
   component: LoginPage,
 });
+const evChargingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/ev-charging",
+  component: EVChargingPage,
+});
 
 const notFoundRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -209,6 +226,7 @@ const routeTree = rootRoute.addChildren([
   b2bSellerRoute,
   b2bBuyerRoute,
   loginRoute,
+  evChargingRoute,
   notFoundRoute,
 ]);
 

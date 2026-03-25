@@ -1,6 +1,28 @@
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { FileText, Home, MessageSquare, Plus, User } from "lucide-react";
+import { Home, MessageSquare, Plus, User } from "lucide-react";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
+
+// My Ads icon — grid style
+function MyAdsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-label="My Ads"
+      role="img"
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
 
 export default function BottomNav() {
   const { pathname } = useLocation();
@@ -8,17 +30,27 @@ export default function BottomNav() {
   const { identity } = useInternetIdentity();
   const isAuthenticated = !!identity;
 
+  // Hide bottom nav on these full-screen routes
+  const hiddenRoutes = ["/messages", "/chat", "/dealer", "/ev-charging"];
+  if (
+    hiddenRoutes.some((r) => pathname === r || pathname.startsWith(`${r}/`))
+  ) {
+    return null;
+  }
+
   const isActive = (path: string) => {
     if (path === "/") return pathname === "/";
     return pathname.startsWith(path);
   };
 
-  const tabClass = (path: string) =>
-    `flex flex-col items-center justify-center gap-0.5 flex-1 py-2 text-[10px] font-medium transition-colors ${
-      isActive(path)
-        ? "text-primary"
-        : "text-muted-foreground hover:text-foreground"
+  const isHome = isActive("/");
+
+  const tabClass = (path: string) => {
+    const active = isActive(path);
+    return `flex flex-col items-center justify-center gap-0.5 flex-1 py-2 text-[10px] font-medium transition-colors ${
+      active ? "text-blue-600" : "text-muted-foreground hover:text-foreground"
     }`;
+  };
 
   const handleAuthRequired = (dest: string) => {
     if (!isAuthenticated) {
@@ -37,7 +69,11 @@ export default function BottomNav() {
       <button
         type="button"
         onClick={() => navigate({ to: "/" })}
-        className={tabClass("/")}
+        className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-2 text-[10px] font-medium transition-colors ${
+          isHome
+            ? "text-blue-600"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
         data-ocid="bottom_nav.home.link"
       >
         <Home className="h-5 w-5" />
@@ -52,8 +88,9 @@ export default function BottomNav() {
         data-ocid="bottom_nav.chats.link"
       >
         <div className="relative">
-          <MessageSquare className="h-5 w-5" />
-          {/* Notification dot */}
+          <MessageSquare
+            className={`h-5 w-5 ${isActive("/messages") ? "text-blue-600 fill-blue-100" : ""}`}
+          />
           <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-orange-500 border-2 border-background" />
         </div>
         <span>Chats</span>
@@ -67,11 +104,11 @@ export default function BottomNav() {
         data-ocid="bottom_nav.sell.button"
       >
         <div className="-mt-5 flex items-center justify-center h-[62px] w-[62px] rounded-full bg-white border-[3px] border-yellow-400 shadow-lg shadow-[0_0_12px_3px_rgba(37,99,235,0.35)] transition-transform active:scale-95">
-          <div className="flex items-center justify-center h-[50px] w-[50px] rounded-full bg-primary">
+          <div className="flex items-center justify-center h-[50px] w-[50px] rounded-full bg-blue-600">
             <Plus className="h-7 w-7 text-white" strokeWidth={2.5} />
           </div>
         </div>
-        <span className="text-[10px] font-semibold text-primary mt-0.5">
+        <span className="text-[10px] font-semibold text-blue-600 mt-0.5">
           Sell
         </span>
       </button>
@@ -83,7 +120,11 @@ export default function BottomNav() {
         className={tabClass("/my-ads")}
         data-ocid="bottom_nav.my_ads.link"
       >
-        <FileText className="h-5 w-5" />
+        <MyAdsIcon
+          className={`h-5 w-5 ${
+            isActive("/my-ads") ? "text-blue-600" : "text-muted-foreground"
+          }`}
+        />
         <span>My Ads</span>
       </button>
 

@@ -12,15 +12,16 @@ export interface BannerSlide {
 
 export const BANNER_SLIDES: BannerSlide[] = [
   {
-    id: "slide-sell-device",
-    title: "Sell Your Device",
-    subtitle: "Get instant cash — free pickup, best price guaranteed",
-    ctaText: "Sell Now",
-    ctaUrl: "/instant-buy",
-    bgFrom: "#f97316",
-    bgTo: "#fb923c",
-    accentColor: "#c2410c",
-    productImage: "/assets/generated/banner-slide-sell-device.dim_600x300.png",
+    id: "slide-ev-charging",
+    title: "Find EV Charging Points Near Me",
+    subtitle:
+      "Locate the nearest charging stations for your electric vehicle instantly.",
+    ctaText: "Find Now",
+    ctaUrl: "/ev-charging",
+    bgFrom: "#15803d",
+    bgTo: "#22c55e",
+    accentColor: "#14532d",
+    productImage: "",
   },
   {
     id: "slide-find-phone",
@@ -76,27 +77,5 @@ export const BANNER_SLIDES: BannerSlide[] = [
     bgTo: "#fb923c",
     accentColor: "#c2410c",
     productImage: "/assets/generated/banner-slide-3.dim_600x300.png",
-  },
-  {
-    id: "slide-4",
-    title: "Wearables & Audio",
-    subtitle: "Watches, earphones & headphones — curated collection",
-    ctaText: "Explore Now",
-    ctaUrl: "/?category=watches",
-    bgFrom: "#059669",
-    bgTo: "#34d399",
-    accentColor: "#047857",
-    productImage: "/assets/generated/banner-slide-4.dim_600x300.png",
-  },
-  {
-    id: "slide-5",
-    title: "Gaming Extravaganza",
-    subtitle: "Consoles & gaming gear — buy, sell, trade locally",
-    ctaText: "Shop Gaming",
-    ctaUrl: "/",
-    bgFrom: "#4338ca",
-    bgTo: "#818cf8",
-    accentColor: "#3730a3",
-    productImage: "/assets/generated/banner-slide-5.dim_600x300.png",
   },
 ];

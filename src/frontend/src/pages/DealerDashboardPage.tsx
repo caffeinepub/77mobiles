@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
   ArrowRight,
@@ -13,7 +13,6 @@ import {
   ShoppingBag,
   Store,
   TrendingUp,
-  X,
   XCircle,
 } from "lucide-react";
 import {
@@ -139,7 +138,7 @@ function KycStatusBanner({ demo }: { demo: DemoDealer | null }) {
             Complete Your Dealer Registration
           </p>
           <p className="text-xs text-blue-600 mt-0.5">
-            You haven't submitted a dealer registration yet.{" "}
+            You haven&apos;t submitted a dealer registration yet.{" "}
             <Link
               to="/b2b"
               className="underline hover:text-blue-800 transition-colors"
@@ -201,25 +200,30 @@ function KycStatusBanner({ demo }: { demo: DemoDealer | null }) {
 
 export default function DealerDashboardPage() {
   const demo = getDemoDealer();
+  const navigate = useNavigate();
 
   const handleExit = () => {
     localStorage.setItem(DEALER_MODE_KEY, "false");
     localStorage.removeItem(DEMO_KEY);
-    window.location.href = "/";
+    navigate({ to: "/" });
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f7fa] text-gray-900">
-      {/* Top Banner */}
+    // Full-screen: hide all external chrome, take 100vh
+    <div
+      className="fixed inset-0 z-[70] bg-[#f5f7fa] text-gray-900 overflow-y-auto"
+      data-ocid="dealer.panel"
+    >
+      {/* Seller Portal Top Banner */}
       <div className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-4">
-        <div className="container mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="container mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 max-w-4xl">
           <div className="flex items-center gap-3">
             <BarChart3 className="h-6 w-6 text-white" />
             <h1 className="text-xl font-black text-white tracking-tight">
               77mobiles.pro
             </h1>
             <Badge className="bg-white/20 text-white border border-white/30 font-semibold text-xs">
-              ✦ Dealer Dashboard
+              ✦ Seller Portal
             </Badge>
             {demo && (
               <Badge className="bg-white/20 text-white border border-white/30 font-semibold text-xs">
@@ -234,14 +238,12 @@ export default function DealerDashboardPage() {
             className="border-white/40 text-white hover:bg-white/10 hover:border-white/60 gap-1.5 bg-transparent"
             data-ocid="dealer.close_button"
           >
-            <X className="h-3.5 w-3.5" />
-            Exit Dealer Mode
+            Switch to Consumer Mode
           </Button>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-8 space-y-8 max-w-4xl">
-        {/* KYC Notice */}
         <KycStatusBanner demo={demo} />
 
         {/* Portal Access Cards */}

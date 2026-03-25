@@ -19,8 +19,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link, useSearch } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   ArrowLeft,
   CheckCheck,
+  Edit2,
   Handshake,
   ImageIcon,
   Loader2,
@@ -30,6 +32,7 @@ import {
   Paperclip,
   Pause,
   Play,
+  Search,
   Send,
   Tag,
   X,
@@ -67,6 +70,8 @@ const WAVEFORM_BARS = [
   { id: "p", h: 5 },
   { id: "q", h: 4 },
 ];
+
+type QuickFilter = "All" | "Unread" | "Important";
 
 function parseMessageType(content: string) {
   if (content === "[DEAL_CONFIRMED]") return { type: "deal" as const };
@@ -147,9 +152,7 @@ function AudioBubble({ b64, isMe }: { b64: string; isMe: boolean }) {
         {WAVEFORM_BARS.map((bar) => (
           <div
             key={bar.id}
-            className={`w-0.5 rounded-full ${
-              isMe ? "bg-white/60" : "bg-black/30"
-            }`}
+            className={`w-0.5 rounded-full ${isMe ? "bg-white/60" : "bg-black/30"}`}
             style={{ height: `${bar.h * 2}px` }}
           />
         ))}
@@ -165,18 +168,12 @@ function LocationBubble({
   lat,
   lng,
   isMe,
-}: {
-  lat: string;
-  lng: string;
-  isMe: boolean;
-}) {
+}: { lat: string; lng: string; isMe: boolean }) {
   const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
   return (
     <div className="min-w-[180px]">
       <div
-        className={`flex items-center gap-2 mb-1 font-semibold text-sm ${
-          isMe ? "text-white" : "text-foreground"
-        }`}
+        className={`flex items-center gap-2 mb-1 font-semibold text-sm ${isMe ? "text-white" : "text-foreground"}`}
       >
         <MapPin className="h-4 w-4 shrink-0" />
         Shared Location
@@ -188,9 +185,7 @@ function LocationBubble({
         href={mapsUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className={`text-xs underline font-medium ${
-          isMe ? "text-white/90" : "text-blue-600"
-        }`}
+        className={`text-xs underline font-medium ${isMe ? "text-white/90" : "text-blue-600"}`}
       >
         Open in Maps →
       </a>
@@ -201,10 +196,7 @@ function LocationBubble({
 function ImageBubble({
   dataUrl,
   onOpen,
-}: {
-  dataUrl: string;
-  onOpen: (url: string) => void;
-}) {
+}: { dataUrl: string; onOpen: (url: string) => void }) {
   return (
     <button
       type="button"
@@ -221,13 +213,7 @@ function ImageBubble({
   );
 }
 
-function Lightbox({
-  url,
-  onClose,
-}: {
-  url: string;
-  onClose: () => void;
-}) {
+function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
   return (
     <AnimatePresence>
       <motion.div
@@ -262,7 +248,6 @@ function Lightbox({
   );
 }
 
-// ── Make Offer Panel ───────────────────────────────────────────────────────
 function MakeOfferPanel({
   listingPrice,
   onSend,
@@ -273,12 +258,9 @@ function MakeOfferPanel({
   onClose: () => void;
 }) {
   const [customAmount, setCustomAmount] = useState("");
-
   const PRESETS = [0.7, 0.8, 0.85, 0.9, 1.0];
 
-  const handlePreset = (pct: number) => {
-    onSend(Math.round(listingPrice * pct));
-  };
+  const handlePreset = (pct: number) => onSend(Math.round(listingPrice * pct));
 
   const handleCustomSend = () => {
     const val = Number(customAmount.replace(/[^0-9]/g, ""));
@@ -315,7 +297,6 @@ function MakeOfferPanel({
           {formatINR(listingPrice)}
         </span>
       </p>
-      {/* Preset chips */}
       <div className="flex flex-wrap gap-1.5 mb-3">
         {PRESETS.map((pct) => (
           <button
@@ -332,7 +313,6 @@ function MakeOfferPanel({
           </button>
         ))}
       </div>
-      {/* Custom amount */}
       <div className="flex gap-2">
         <div className="flex-1 relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-medium">
@@ -361,13 +341,11 @@ function MakeOfferPanel({
   );
 }
 
-// ── Main Page ──────────────────────────────────────────────────────────────────
 export default function MessagesPage() {
   const { identity, login, loginStatus } = useInternetIdentity();
   const isAuthenticated = !!identity;
   const isLoggingIn = loginStatus === "logging-in";
 
-  // Read listingId from URL
   const searchParams = useSearch({ strict: false }) as { listingId?: string };
   const urlListingId = searchParams.listingId;
 
@@ -379,8 +357,8 @@ export default function MessagesPage() {
   const [dealDialogOpen, setDealDialogOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [offerPanelOpen, setOfferPanelOpen] = useState(false);
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("All");
 
-  // Voice recording state
   const [recording, setRecording] = useState(false);
   const [recordingSecs, setRecordingSecs] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -396,30 +374,21 @@ export default function MessagesPage() {
 
   const { data: messages, isLoading: loadingMessages } =
     useGetMessagesForListing(selectedListingId ?? "", !!selectedListingId);
-
   const { mutateAsync: postMessage, isPending: sending } = usePostMessage();
 
-  // Auto-select listing from URL param
   useEffect(() => {
     if (urlListingId && relatedListings && selectedListingId === null) {
       const match = relatedListings.find((l) => l.id === urlListingId);
-      if (match) {
-        setSelectedListingId(urlListingId);
-      } else {
-        // Listing not yet in relatedListings — select anyway so it loads
-        setSelectedListingId(urlListingId);
-      }
+      if (match || urlListingId) setSelectedListingId(urlListingId);
     }
   }, [urlListingId, relatedListings, selectedListingId]);
 
-  // Auto-scroll to bottom on new messages
   const msgCount = messages?.length ?? 0;
   // biome-ignore lint/correctness/useExhaustiveDependencies: msgCount drives scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgCount]);
 
-  // ── Recipient helper
   const getRecipient = useCallback(() => {
     if (!selectedListing || !identity) return null;
     const isMySelling =
@@ -433,7 +402,6 @@ export default function MessagesPage() {
     return selectedListing.seller;
   }, [selectedListing, identity, messages]);
 
-  // ── Send text
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyText.trim() || !selectedListing) return;
@@ -451,7 +419,6 @@ export default function MessagesPage() {
     }
   };
 
-  // ── Send offer
   const handleSendOffer = async (amount: number) => {
     if (!selectedListing) return;
     const recipient = getRecipient();
@@ -469,7 +436,6 @@ export default function MessagesPage() {
     }
   };
 
-  // ── Voice recording
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -523,7 +489,6 @@ export default function MessagesPage() {
     if (timerRef.current) clearInterval(timerRef.current);
   }, [recording, selectedListing, getRecipient, postMessage]);
 
-  // ── Location sharing
   const shareLocation = () => {
     setAttachOpen(false);
     if (!navigator.geolocation) {
@@ -546,22 +511,16 @@ export default function MessagesPage() {
           toast.error("Failed to share location");
         }
       },
-      () =>
-        toast.error(
-          "Location access denied. Please enable location in browser settings.",
-        ),
+      () => toast.error("Location access denied."),
     );
   };
 
-  // ── Photo sharing
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (imageInputRef.current) imageInputRef.current.value = "";
-
     const recipient = getRecipient();
     if (!recipient || !selectedListing) return;
-
     const reader = new FileReader();
     reader.onloadend = async () => {
       const dataUrl = reader.result as string;
@@ -583,7 +542,6 @@ export default function MessagesPage() {
     imageInputRef.current?.click();
   };
 
-  // ── Deal confirmed
   const confirmDeal = async () => {
     const recipient = getRecipient();
     if (!recipient || !selectedListing) return;
@@ -593,30 +551,29 @@ export default function MessagesPage() {
         recipient,
         content: "[DEAL_CONFIRMED]",
       });
-      toast.success("Deal confirmed! Both parties notified.");
+      toast.success("Deal confirmed!");
     } catch {
       toast.error("Failed to confirm deal");
     }
   };
 
-  // Listing price as number
   const listingPriceNum = selectedListing
     ? Number(String(selectedListing.price).replace(/[^0-9.]/g, ""))
     : 0;
 
   if (!isAuthenticated) {
     return (
-      <div className="container mx-auto px-4 py-16 max-w-md text-center">
-        <span className="text-6xl mb-4 block">💬</span>
-        <h2 className="font-display font-bold text-2xl mb-2">Your Messages</h2>
-        <p className="text-muted-foreground text-sm mb-6">
+      <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <MessageCircle className="h-16 w-16 text-gray-200" />
+        <h2 className="font-bold text-xl text-[#002f34]">Your Messages</h2>
+        <p className="text-gray-400 text-sm">
           Login to view your conversations.
         </p>
         <Button
           onClick={() => login()}
           disabled={isLoggingIn}
           size="lg"
-          className="w-full"
+          className="w-full max-w-xs bg-blue-600 hover:bg-blue-700"
           data-ocid="messages.primary_button"
         >
           {isLoggingIn ? (
@@ -632,7 +589,11 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-4 max-w-4xl">
+    // Full screen — hide nothing in here, BottomNav is hidden by route check
+    <div
+      className="fixed inset-0 z-50 bg-[#F8F9FA] flex flex-col"
+      data-ocid="messages.panel"
+    >
       {/* Hidden photo input */}
       <input
         ref={imageInputRef}
@@ -642,20 +603,120 @@ export default function MessagesPage() {
         onChange={handlePhotoSelect}
         data-ocid="messages.upload_button"
       />
-
-      {/* Lightbox */}
       {lightboxUrl && (
         <Lightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
       )}
 
-      <div className="md:col-span-5 flex flex-1 overflow-hidden">
-        {/* ── Conversations list ──────────────────────────────────────── */}
-        <div
-          className={`md:w-2/5 w-full border-r border-gray-200 flex flex-col bg-[#F8F9FA] ${
-            selectedListingId ? "hidden md:flex" : "flex"
-          }`}
-        >
-          <ScrollArea className="flex-1">
+      {/* ── Inbox Header (shown when no chat is selected) ── */}
+      {!selectedListingId && (
+        <>
+          {/* White header: Edit | Inbox | Search */}
+          <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shrink-0">
+            <button
+              type="button"
+              className="text-blue-600 text-sm font-semibold"
+              data-ocid="messages.button"
+            >
+              <Edit2 className="h-4 w-4" />
+            </button>
+            <h1 className="font-black text-[#002f34] text-base">Inbox</h1>
+            <button
+              type="button"
+              className="text-[#002f34]"
+              data-ocid="messages.button"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Package expired alert */}
+          <div className="bg-white border-b border-gray-100 px-4 py-2.5 flex items-center gap-3 shrink-0">
+            <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+            <p className="text-xs text-gray-700 flex-1">
+              Your package expired.{" "}
+              <span className="font-semibold text-red-600">Renew</span> to boost
+              visibility.
+            </p>
+            <button
+              type="button"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded-lg shrink-0"
+              data-ocid="messages.button"
+            >
+              Renew
+            </button>
+          </div>
+
+          {/* Quick Filter Pills */}
+          <div className="bg-white border-b border-gray-100 px-4 py-2 flex gap-2 shrink-0">
+            {(["All", "Unread", "Important"] as QuickFilter[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setQuickFilter(f)}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  quickFilter === f
+                    ? "bg-[#002f34] text-white"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+                data-ocid="messages.tab"
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── Chat header (when a chat is open on mobile) ── */}
+      {selectedListingId && selectedListing && (
+        <div className="bg-white border-b border-gray-200 px-3 py-2.5 flex items-center gap-3 shrink-0 shadow-sm">
+          <button
+            type="button"
+            className="h-8 w-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-full"
+            onClick={() => {
+              setSelectedListingId(null);
+              setOfferPanelOpen(false);
+            }}
+            data-ocid="messages.button"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div className="h-10 w-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white font-bold bg-blue-600">
+            {selectedListing.images[0] ? (
+              <img
+                src={selectedListing.images[0].getDirectURL()}
+                alt={selectedListing.title}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              (selectedListing.title[0]?.toUpperCase() ?? "📱")
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-[#002f34] truncate">
+              {selectedListing.title}
+            </p>
+            <p className="text-xs font-bold text-blue-600">
+              {formatPrice(selectedListing.price)}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-blue-600 border-blue-200 hover:bg-blue-50 text-xs h-7 px-2 shrink-0"
+            onClick={() => setDealDialogOpen(true)}
+            data-ocid="messages.open_modal_button"
+          >
+            <Handshake className="h-3.5 w-3.5 mr-1" /> Deal Done
+          </Button>
+        </div>
+      )}
+
+      {/* ── Main content area ── */}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Conversations list */}
+        {!selectedListingId && (
+          <div className="flex-1 overflow-y-auto">
             {loadingListings ? (
               <div className="p-3 space-y-3" data-ocid="messages.loading_state">
                 {[1, 2, 3].map((i) => (
@@ -663,14 +724,64 @@ export default function MessagesPage() {
                 ))}
               </div>
             ) : !relatedListings || relatedListings.length === 0 ? (
-              <div className="p-8 text-center" data-ocid="messages.empty_state">
-                <MessageCircle className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-500">No conversations yet</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Browse listings and message sellers
+              // Zero state
+              <div
+                className="flex-1 h-full flex flex-col items-center justify-center p-8 text-center"
+                style={{ minHeight: "60vh" }}
+                data-ocid="messages.empty_state"
+              >
+                <svg
+                  width="80"
+                  height="80"
+                  viewBox="0 0 80 80"
+                  fill="none"
+                  className="mb-5 text-gray-300"
+                  aria-label="No conversations"
+                  role="img"
+                >
+                  <title>No conversations</title>
+                  <rect
+                    x="8"
+                    y="16"
+                    width="64"
+                    height="48"
+                    rx="8"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    fill="none"
+                  />
+                  <path
+                    d="M8 48 L24 36 L40 48 L56 36 L72 48"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    fill="none"
+                  />
+                  <circle
+                    cx="40"
+                    cy="56"
+                    r="6"
+                    fill="currentColor"
+                    opacity="0.3"
+                  />
+                  <path
+                    d="M34 56 L38 60 L46 52"
+                    stroke="white"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <p className="font-bold text-lg text-[#002f34] mb-1">
+                  No conversations yet
+                </p>
+                <p className="text-sm text-gray-400 mb-6">
+                  Start chatting with sellers by browsing listings
                 </p>
                 <Link to="/">
-                  <Button variant="outline" size="sm" className="mt-4">
+                  <Button
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-8 h-11"
+                    data-ocid="messages.primary_button"
+                  >
                     Browse Listings
                   </Button>
                 </Link>
@@ -687,14 +798,10 @@ export default function MessagesPage() {
                       setSelectedListingId(listing.id);
                       setOfferPanelOpen(false);
                     }}
-                    className={`w-full text-left px-4 py-3 flex gap-3 items-start transition-colors ${
-                      selectedListingId === listing.id
-                        ? "bg-blue-50"
-                        : "hover:bg-gray-50"
-                    }`}
+                    className="w-full text-left px-4 py-3 flex gap-3 items-start transition-colors bg-white hover:bg-gray-50"
                     data-ocid={`messages.item.${i + 1}`}
                   >
-                    <div className="w-[60px] h-[60px] rounded-lg overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
+                    <div className="w-[60px] h-[60px] rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
                       {listing.images[0] ? (
                         <img
                           src={listing.images[0].getDirectURL()}
@@ -714,7 +821,7 @@ export default function MessagesPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm truncate text-gray-900 leading-tight">
+                      <p className="font-bold text-sm truncate text-[#002f34] leading-tight">
                         {listing.title}
                       </p>
                       <p className="text-xs text-gray-400 truncate mt-0.5">
@@ -730,350 +837,291 @@ export default function MessagesPage() {
                         </span>
                       </div>
                     </div>
+                    {/* Unread badge */}
+                    {i < 2 && (
+                      <span className="h-5 min-w-[20px] rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center px-1.5 shrink-0">
+                        {i + 1}
+                      </span>
+                    )}
                   </motion.button>
                 ))}
               </div>
             )}
-          </ScrollArea>
-        </div>
+          </div>
+        )}
 
-        {/* ── Message thread ───────────────────────────────────────────── */}
-        <div
-          className={`md:col-span-3 flex flex-col bg-white ${
-            !selectedListingId ? "hidden md:flex" : "flex"
-          }`}
-        >
-          {!selectedListing ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-gray-50">
-              <MessageCircle className="h-12 w-12 text-gray-300 mb-3" />
-              <p className="text-gray-500 text-sm">
-                Select a conversation to view messages
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* OLX-style Chat Header — white/light gray */}
-              <div className="px-3 py-2.5 flex items-center gap-3 shrink-0 bg-white border-b border-gray-200 shadow-sm">
-                <button
-                  type="button"
-                  className="md:hidden h-8 w-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-full"
-                  onClick={() => {
-                    setSelectedListingId(null);
-                    setOfferPanelOpen(false);
-                  }}
-                  data-ocid="messages.button"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
-                <div className="h-9 w-9 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white font-bold bg-blue-600">
-                  {selectedListing.images[0] ? (
-                    <img
-                      src={selectedListing.images[0].getDirectURL()}
-                      alt={selectedListing.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    (selectedListing.title[0]?.toUpperCase() ?? "📱")
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-gray-900 truncate">
-                    {selectedListing.title}
-                  </p>
-                  <p className="text-xs font-bold text-blue-600">
-                    {formatPrice(selectedListing.price)}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-blue-600 border-blue-200 hover:bg-blue-50 text-xs h-7 px-2 shrink-0"
-                  onClick={() => setDealDialogOpen(true)}
-                  data-ocid="messages.open_modal_button"
-                >
-                  <Handshake className="h-3.5 w-3.5 mr-1" />
-                  Deal Done
-                </Button>
-                <Link
-                  to="/listing/$listingId"
-                  params={{ listingId: selectedListing.id }}
-                >
-                  <Badge
-                    variant="outline"
-                    className="text-blue-600 border-blue-200 hover:bg-blue-50 text-xs cursor-pointer shrink-0"
-                  >
-                    View
-                  </Badge>
-                </Link>
+        {/* Message thread */}
+        {selectedListingId && (
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {!selectedListing ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#F5F5F5]">
+                <MessageCircle className="h-12 w-12 text-gray-300 mb-3" />
+                <p className="text-gray-400 text-sm">
+                  Select a conversation to view messages
+                </p>
               </div>
-
-              {/* Chat background — light blue/gray tint with dot pattern */}
-              <div
-                className="flex-1 overflow-hidden relative"
-                style={{
-                  backgroundImage:
-                    "radial-gradient(circle, rgba(37,99,235,0.08) 1px, transparent 1px)",
-                  backgroundSize: "20px 20px",
-                  backgroundColor: "#F0F4F8",
-                }}
-              >
-                <ScrollArea className="h-full">
-                  <div className="p-4 space-y-1.5">
-                    {loadingMessages ? (
-                      <div
-                        className="space-y-3"
-                        data-ocid="messages.loading_state"
-                      >
-                        {[1, 2, 3].map((i) => (
-                          <Skeleton key={i} className="h-10 w-2/3 rounded-xl" />
-                        ))}
-                      </div>
-                    ) : messages && messages.length === 0 ? (
-                      <div
-                        className="flex flex-col items-center justify-center py-16"
-                        data-ocid="messages.empty_state"
-                      >
-                        <div className="bg-white rounded-xl px-5 py-3 text-center shadow-sm border border-gray-100">
-                          <p className="text-sm text-gray-500">
-                            No messages yet
-                          </p>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            Say hello! 👋
-                          </p>
+            ) : (
+              <>
+                {/* Message background */}
+                <div
+                  className="flex-1 overflow-hidden"
+                  style={{ background: "#F5F5F5" }}
+                >
+                  <ScrollArea className="h-full">
+                    <div className="p-4 space-y-1.5">
+                      {loadingMessages ? (
+                        <div
+                          className="space-y-3"
+                          data-ocid="messages.loading_state"
+                        >
+                          {[1, 2, 3].map((i) => (
+                            <Skeleton
+                              key={i}
+                              className="h-10 w-2/3 rounded-xl"
+                            />
+                          ))}
                         </div>
-                      </div>
-                    ) : (
-                      <AnimatePresence initial={false}>
-                        {messages?.map((msg, idx) => {
-                          const isMe =
-                            msg.sender.toString() ===
-                            identity?.getPrincipal().toString();
-                          const parsed = parseMessageType(msg.content);
+                      ) : messages && messages.length === 0 ? (
+                        <div
+                          className="flex flex-col items-center justify-center py-16"
+                          data-ocid="messages.empty_state"
+                        >
+                          <div className="bg-white rounded-xl px-5 py-3 text-center shadow-sm border border-gray-100">
+                            <p className="text-sm text-gray-500">
+                              No messages yet
+                            </p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              Say hello! 👋
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <AnimatePresence initial={false}>
+                          {messages?.map((msg, idx) => {
+                            const isMe =
+                              msg.sender.toString() ===
+                              identity?.getPrincipal().toString();
+                            const parsed = parseMessageType(msg.content);
 
-                          if (parsed.type === "deal") {
+                            if (parsed.type === "deal") {
+                              return (
+                                <motion.div
+                                  key={msg.id}
+                                  initial={{ opacity: 0, scale: 0.9 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  className="flex justify-center my-3"
+                                >
+                                  <div
+                                    className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white shadow-md bg-blue-600"
+                                    data-ocid={`messages.item.${idx + 1}`}
+                                  >
+                                    ✅ Deal confirmed after device inspection
+                                  </div>
+                                </motion.div>
+                              );
+                            }
+
                             return (
                               <motion.div
                                 key={msg.id}
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="flex justify-center my-3"
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                                data-ocid={`messages.item.${idx + 1}`}
                               >
                                 <div
-                                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white shadow-md bg-blue-600"
-                                  data-ocid={`messages.item.${idx + 1}`}
+                                  className={`relative ${
+                                    parsed.type === "image"
+                                      ? "p-1"
+                                      : "px-3 py-2"
+                                  } text-sm shadow-sm ${
+                                    isMe
+                                      ? "rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-sm"
+                                      : "rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-sm"
+                                  } ${
+                                    parsed.type === "image"
+                                      ? ""
+                                      : isMe
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-white text-gray-800 border border-gray-100"
+                                  }`}
+                                  style={{ maxWidth: "72%" }}
                                 >
-                                  ✅ Deal confirmed after device inspection
+                                  {parsed.type === "audio" && (
+                                    <AudioBubble b64={parsed.b64} isMe={isMe} />
+                                  )}
+                                  {parsed.type === "location" && (
+                                    <LocationBubble
+                                      lat={parsed.lat}
+                                      lng={parsed.lng}
+                                      isMe={isMe}
+                                    />
+                                  )}
+                                  {parsed.type === "image" && (
+                                    <ImageBubble
+                                      dataUrl={parsed.dataUrl}
+                                      onOpen={setLightboxUrl}
+                                    />
+                                  )}
+                                  {parsed.type === "text" && (
+                                    <p
+                                      className={`leading-snug break-words pr-10 ${isMe ? "text-white" : "text-gray-800"}`}
+                                    >
+                                      {msg.content}
+                                    </p>
+                                  )}
+                                  {parsed.type !== "image" && (
+                                    <p
+                                      className={`flex items-center gap-0.5 text-[10px] mt-1 justify-end ${isMe ? "text-white/70" : "text-gray-400"}`}
+                                    >
+                                      {formatTimeAgo(msg.timestamp)}
+                                      {isMe && (
+                                        <CheckCheck className="h-3 w-3 text-white/80" />
+                                      )}
+                                    </p>
+                                  )}
                                 </div>
                               </motion.div>
                             );
-                          }
+                          })}
+                        </AnimatePresence>
+                      )}
+                      <div ref={messagesEndRef} />
+                    </div>
+                  </ScrollArea>
+                </div>
 
-                          return (
-                            <motion.div
-                              key={msg.id}
-                              initial={{ opacity: 0, y: 6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.15 }}
-                              className={`flex ${
-                                isMe ? "justify-end" : "justify-start"
-                              }`}
-                              data-ocid={`messages.item.${idx + 1}`}
-                            >
-                              <div
-                                className={`relative ${
-                                  parsed.type === "image" ? "p-1" : "px-3 py-2"
-                                } text-sm shadow-sm ${
-                                  isMe
-                                    ? "rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-sm"
-                                    : "rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-sm"
-                                } ${
-                                  parsed.type === "image"
-                                    ? ""
-                                    : isMe
-                                      ? "bg-blue-600 text-white"
-                                      : "bg-white text-gray-800 border border-gray-100"
-                                }`}
-                                style={{ maxWidth: "72%" }}
-                              >
-                                {parsed.type === "audio" && (
-                                  <AudioBubble b64={parsed.b64} isMe={isMe} />
-                                )}
-                                {parsed.type === "location" && (
-                                  <LocationBubble
-                                    lat={parsed.lat}
-                                    lng={parsed.lng}
-                                    isMe={isMe}
-                                  />
-                                )}
-                                {parsed.type === "image" && (
-                                  <ImageBubble
-                                    dataUrl={parsed.dataUrl}
-                                    onOpen={setLightboxUrl}
-                                  />
-                                )}
-                                {parsed.type === "text" && (
-                                  <p
-                                    className={`leading-snug break-words pr-10 ${
-                                      isMe ? "text-white" : "text-gray-800"
-                                    }`}
-                                  >
-                                    {msg.content}
-                                  </p>
-                                )}
-                                {parsed.type !== "image" && (
-                                  <p
-                                    className={`flex items-center gap-0.5 text-[10px] mt-1 justify-end ${
-                                      isMe ? "text-white/70" : "text-gray-400"
-                                    }`}
-                                  >
-                                    {formatTimeAgo(msg.timestamp)}
-                                    {isMe && (
-                                      <CheckCheck className="h-3 w-3 text-white/80" />
-                                    )}
-                                  </p>
-                                )}
-                              </div>
-                            </motion.div>
-                          );
-                        })}
-                      </AnimatePresence>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-                </ScrollArea>
-              </div>
-
-              {/* Make Offer Panel */}
-              <AnimatePresence>
-                {offerPanelOpen && listingPriceNum > 0 && (
-                  <MakeOfferPanel
-                    listingPrice={listingPriceNum}
-                    onSend={handleSendOffer}
-                    onClose={() => setOfferPanelOpen(false)}
-                  />
-                )}
-              </AnimatePresence>
-
-              {/* ── Input bar ───────────────────────────────────────────── */}
-              <div className="px-2 py-2 flex items-end gap-2 shrink-0 bg-white border-t border-gray-200">
-                {/* Attach */}
-                <Popover open={attachOpen} onOpenChange={setAttachOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      type="button"
-                      className="h-10 w-10 rounded-full text-gray-500 hover:bg-gray-100 shrink-0"
-                      data-ocid="messages.button"
-                    >
-                      <Paperclip className="h-5 w-5" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    side="top"
-                    align="start"
-                    className="w-48 p-1"
-                    data-ocid="messages.popover"
-                  >
-                    <button
-                      type="button"
-                      onClick={triggerPhotoUpload}
-                      className="w-full flex items-center gap-2 text-sm px-3 py-2 rounded-md hover:bg-muted transition-colors"
-                      data-ocid="messages.button"
-                    >
-                      <ImageIcon className="h-4 w-4 text-blue-500" />
-                      Send Photo
-                    </button>
-                    <button
-                      type="button"
-                      onClick={shareLocation}
-                      className="w-full flex items-center gap-2 text-sm px-3 py-2 rounded-md hover:bg-muted transition-colors"
-                      data-ocid="messages.button"
-                    >
-                      <MapPin className="h-4 w-4 text-red-500" />
-                      Share Location
-                    </button>
-                  </PopoverContent>
-                </Popover>
-
-                {/* Offer button */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  type="button"
-                  className="h-10 w-10 rounded-full text-blue-600 hover:bg-blue-50 shrink-0"
-                  onClick={() => setOfferPanelOpen((prev) => !prev)}
-                  title="Make an offer"
-                  data-ocid="messages.button"
-                >
-                  <Tag className="h-5 w-5" />
-                </Button>
-
-                {recording ? (
-                  <div className="flex-1 flex items-center gap-3 bg-gray-100 rounded-full px-4 py-2 h-10">
-                    <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-sm text-gray-600">
-                      Recording… {formatDuration(recordingSecs)}
-                    </span>
-                  </div>
-                ) : (
-                  <div
-                    className="flex-1 bg-gray-100 rounded-full px-4 flex items-center"
-                    style={{ minHeight: "40px" }}
-                  >
-                    <textarea
-                      placeholder="Type a message"
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      className="flex-1 resize-none bg-transparent text-sm py-2 outline-none max-h-28 leading-snug text-gray-800"
-                      rows={1}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSend(e as any);
-                        }
-                      }}
-                      data-ocid="messages.textarea"
+                {/* Make Offer Panel */}
+                <AnimatePresence>
+                  {offerPanelOpen && listingPriceNum > 0 && (
+                    <MakeOfferPanel
+                      listingPrice={listingPriceNum}
+                      onSend={handleSendOffer}
+                      onClose={() => setOfferPanelOpen(false)}
                     />
-                  </div>
-                )}
+                  )}
+                </AnimatePresence>
 
-                {replyText.trim() ? (
+                {/* Input bar */}
+                <div className="px-2 py-2 flex items-end gap-2 shrink-0 bg-white border-t border-gray-200">
+                  <Popover open={attachOpen} onOpenChange={setAttachOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        type="button"
+                        className="h-10 w-10 rounded-full text-gray-500 hover:bg-gray-100 shrink-0"
+                        data-ocid="messages.button"
+                      >
+                        <Paperclip className="h-5 w-5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      side="top"
+                      align="start"
+                      className="w-48 p-1"
+                      data-ocid="messages.popover"
+                    >
+                      <button
+                        type="button"
+                        onClick={triggerPhotoUpload}
+                        className="w-full flex items-center gap-2 text-sm px-3 py-2 rounded-md hover:bg-muted transition-colors"
+                        data-ocid="messages.button"
+                      >
+                        <ImageIcon className="h-4 w-4 text-blue-500" /> Send
+                        Photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={shareLocation}
+                        className="w-full flex items-center gap-2 text-sm px-3 py-2 rounded-md hover:bg-muted transition-colors"
+                        data-ocid="messages.button"
+                      >
+                        <MapPin className="h-4 w-4 text-red-500" /> Share
+                        Location
+                      </button>
+                    </PopoverContent>
+                  </Popover>
+
                   <Button
-                    type="button"
+                    variant="ghost"
                     size="icon"
-                    className="h-10 w-10 rounded-full shrink-0 bg-blue-600 hover:bg-blue-700"
-                    disabled={sending}
-                    onClick={handleSend as any}
-                    data-ocid="messages.submit_button"
-                  >
-                    {sending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
-                ) : (
-                  <Button
                     type="button"
-                    size="icon"
-                    className={`h-10 w-10 rounded-full shrink-0 transition-colors ${
-                      recording
-                        ? "bg-red-500 hover:bg-red-600"
-                        : "bg-blue-600 hover:bg-blue-700"
-                    }`}
-                    onPointerDown={startRecording}
-                    onPointerUp={stopRecording}
-                    onPointerLeave={stopRecording}
+                    className="h-10 w-10 rounded-full text-blue-600 hover:bg-blue-50 shrink-0"
+                    onClick={() => setOfferPanelOpen((prev) => !prev)}
+                    title="Make an offer"
                     data-ocid="messages.button"
                   >
-                    <Mic className="h-4 w-4" />
+                    <Tag className="h-5 w-5" />
                   </Button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+
+                  {recording ? (
+                    <div className="flex-1 flex items-center gap-3 bg-gray-100 rounded-full px-4 py-2 h-10">
+                      <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-sm text-gray-600">
+                        Recording… {formatDuration(recordingSecs)}
+                      </span>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex-1 bg-gray-100 rounded-full px-4 flex items-center"
+                      style={{ minHeight: "40px" }}
+                    >
+                      <textarea
+                        placeholder="Type a message"
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        className="flex-1 resize-none bg-transparent text-sm py-2 outline-none max-h-28 leading-snug text-gray-800"
+                        rows={1}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSend(e as any);
+                          }
+                        }}
+                        data-ocid="messages.textarea"
+                      />
+                    </div>
+                  )}
+
+                  {replyText.trim() ? (
+                    <Button
+                      type="button"
+                      size="icon"
+                      className="h-10 w-10 rounded-full shrink-0 bg-blue-600 hover:bg-blue-700"
+                      disabled={sending}
+                      onClick={handleSend as any}
+                      data-ocid="messages.submit_button"
+                    >
+                      {sending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="icon"
+                      className={`h-10 w-10 rounded-full shrink-0 transition-colors ${
+                        recording
+                          ? "bg-red-500 hover:bg-red-600"
+                          : "bg-blue-600 hover:bg-blue-700"
+                      }`}
+                      onPointerDown={startRecording}
+                      onPointerUp={stopRecording}
+                      onPointerLeave={stopRecording}
+                      data-ocid="messages.button"
+                    >
+                      <Mic className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Deal Dialog */}
