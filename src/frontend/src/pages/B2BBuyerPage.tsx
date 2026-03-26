@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   AlertCircle,
+  ArrowLeft,
   CheckCircle2,
   Clock,
   Gavel,
@@ -656,6 +657,450 @@ function InvoiceModal({
   );
 }
 
+// ─── Silent Auction Detail View ─────────────────────────────────────────────
+
+function BatteryRing({ percent }: { percent: number }) {
+  const r = 28;
+  const circ = 2 * Math.PI * r;
+  const dashOffset = circ - (percent / 100) * circ;
+  const color = percent >= 80 ? "#22c55e" : "#eab308";
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <svg
+        width="72"
+        height="72"
+        viewBox="0 0 72 72"
+        aria-label="Battery health indicator"
+        role="img"
+      >
+        <circle
+          cx="36"
+          cy="36"
+          r={r}
+          fill="none"
+          stroke="#e5e7eb"
+          strokeWidth="7"
+        />
+        <circle
+          cx="36"
+          cy="36"
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="7"
+          strokeDasharray={circ}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          transform="rotate(-90 36 36)"
+        />
+        <text
+          x="36"
+          y="40"
+          textAnchor="middle"
+          fontSize="14"
+          fontWeight="bold"
+          fill={color}
+        >
+          {percent}%
+        </text>
+      </svg>
+    </div>
+  );
+}
+
+interface AuctionDetailViewProps {
+  listing: B2BListing;
+  onBack: () => void;
+}
+
+function AuctionDetailView({ listing, onBack }: AuctionDetailViewProps) {
+  const [timeLeft, setTimeLeft] = useState(1200); // 20 min
+  const [currentBid, setCurrentBid] = useState(
+    Math.max(listing.basePrice, getHighestBid(listing.id)) || listing.basePrice,
+  );
+  const [bidLog, setBidLog] = useState([
+    { dealer: "Dealer ***42", amount: currentBid },
+    { dealer: "Dealer ***17", amount: currentBid - 500 },
+    { dealer: "Dealer ***89", amount: currentBid - 1000 },
+    { dealer: "Dealer ***31", amount: currentBid - 1500 },
+    { dealer: "Dealer ***55", amount: currentBid - 2000 },
+  ]);
+  const [bidConfirmed, setBidConfirmed] = useState(false);
+  const [extended, setExtended] = useState(false);
+  const [showExtendOverlay, setShowExtendOverlay] = useState(false);
+  const [timerPulse, setTimerPulse] = useState(false);
+  const [auctionClosed, setAuctionClosed] = useState(false);
+  const [showWinner, setShowWinner] = useState(false);
+  const [confetti, setConfetti] = useState(false);
+
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      setAuctionClosed(true);
+      setConfetti(true);
+      setTimeout(() => setShowWinner(true), 800);
+      return;
+    }
+    const id = setInterval(
+      () =>
+        setTimeLeft((t) => {
+          if (t <= 1) {
+            setAuctionClosed(true);
+            return 0;
+          }
+          return t - 1;
+        }),
+      1000,
+    );
+    return () => clearInterval(id);
+  }, [timeLeft]);
+
+  const mins = String(Math.floor(timeLeft / 60)).padStart(2, "0");
+  const secs = String(timeLeft % 60).padStart(2, "0");
+  const isFinalPhase = timeLeft <= 300 && timeLeft > 0;
+
+  const fee = getPlatformFee(currentBid);
+  const gstOnFee = Math.round(fee * 0.18);
+  const totalPayable = currentBid + fee + gstOnFee;
+
+  const handleBid = (increment: number) => {
+    if (auctionClosed) return;
+    const newBid = currentBid + increment;
+    setCurrentBid(newBid);
+    setBidLog((prev) => [
+      { dealer: "You (Dealer ***00)", amount: newBid },
+      ...prev.slice(0, 4),
+    ]);
+    setBidConfirmed(true);
+    setTimeout(() => setBidConfirmed(false), 2000);
+    if (timeLeft < 60) {
+      setTimeLeft((t) => t + 60);
+      setExtended(true);
+      setShowExtendOverlay(true);
+      setTimerPulse(true);
+      setTimeout(() => setShowExtendOverlay(false), 3000);
+      setTimeout(() => setTimerPulse(false), 3000);
+    }
+  };
+
+  const photos = [
+    "Front",
+    "Back",
+    "Left Side",
+    "Right Side",
+    "Battery Screen",
+    "IMEI Screen",
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] bg-white flex flex-col overflow-y-auto"
+      data-ocid="auction.panel"
+    >
+      {/* Confetti */}
+      {confetti && (
+        <div className="fixed inset-0 z-[70] pointer-events-none overflow-hidden">
+          {[
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "c4",
+            "c5",
+            "c6",
+            "c7",
+            "c8",
+            "c9",
+            "c10",
+            "c11",
+            "c12",
+            "c13",
+            "c14",
+            "c15",
+            "c16",
+            "c17",
+            "c18",
+            "c19",
+            "c20",
+            "c21",
+            "c22",
+            "c23",
+            "c24",
+            "c25",
+            "c26",
+            "c27",
+            "c28",
+            "c29",
+            "c30",
+            "c31",
+            "c32",
+            "c33",
+            "c34",
+            "c35",
+            "c36",
+            "c37",
+            "c38",
+            "c39",
+          ].map((id) => (
+            <div
+              key={id}
+              style={{
+                position: "absolute",
+                left: `${Math.random() * 100}%`,
+                top: "-10px",
+                width: "10px",
+                height: "10px",
+                borderRadius: Math.random() > 0.5 ? "50%" : "2px",
+                background: [
+                  "#3b82f6",
+                  "#22c55e",
+                  "#f59e0b",
+                  "#ec4899",
+                  "#8b5cf6",
+                ][Math.floor(Math.random() * 5)],
+                animation: `confettiFall ${1.5 + Math.random() * 2}s linear ${Math.random() * 1}s forwards`,
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Winner modal */}
+      {showWinner && (
+        <div className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center px-6">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl">
+            <div className="text-5xl mb-3">🏆</div>
+            <h2 className="text-2xl font-black text-gray-900">You Won!</h2>
+            <p className="text-gray-500 text-sm mt-2">
+              Congratulations! You won the auction.
+            </p>
+            <div className="mt-4 p-3 bg-blue-50 rounded-2xl">
+              <p className="text-sm text-gray-600">
+                Total Payable (Incl. Fees & GST)
+              </p>
+              <p className="text-2xl font-black text-blue-600">
+                {fmt(totalPayable)}
+              </p>
+            </div>
+            <p className="text-xs text-red-500 mt-3 font-semibold">
+              Please complete payment within 30 minutes.
+            </p>
+            <button
+              type="button"
+              className="mt-4 w-full bg-blue-600 text-white font-bold rounded-2xl py-3 hover:bg-blue-700"
+              onClick={onBack}
+              data-ocid="auction.primary_button"
+            >
+              Proceed to Checkout
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Extension overlay */}
+      {showExtendOverlay && (
+        <div className="fixed inset-0 z-[65] pointer-events-none flex items-center justify-center">
+          <div className="bg-black/80 rounded-2xl px-6 py-4 text-center">
+            <div className="text-4xl mb-1">⚡</div>
+            <p className="text-yellow-300 font-black text-lg">Bid Received!</p>
+            <p className="text-white text-sm">Auction Extended +1 Min</p>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-4 shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onBack}
+              className="p-1.5 rounded-full bg-white/20"
+              data-ocid="auction.close_button"
+            >
+              <ArrowLeft className="h-5 w-5 text-white" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-white font-black text-base leading-tight">
+                  {listing.title}
+                </h1>
+                <span className="bg-green-400/30 border border-green-300 text-green-100 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  ✓ AI Verified
+                </span>
+              </div>
+              <p className="text-blue-100 text-xs">
+                77mobiles.pro · Silent Auction
+              </p>
+            </div>
+          </div>
+          {/* Timer */}
+          <div className={`text-right ${timerPulse ? "animate-pulse" : ""}`}>
+            <p
+              className={`font-mono font-black text-2xl ${isFinalPhase ? "text-yellow-300" : "text-white"} ${auctionClosed ? "text-red-300" : ""}`}
+            >
+              {auctionClosed ? "00:00" : `${mins}:${secs}`}
+            </p>
+            <p className="text-blue-200 text-[10px]">
+              {auctionClosed ? "ENDED" : extended ? "⚡ Extended" : "remaining"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 px-4 py-4 space-y-4 max-w-lg mx-auto w-full">
+        {/* Bento Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex flex-col items-center gap-2">
+            <BatteryRing percent={92} />
+            <p className="text-xs font-bold text-gray-700">Battery Health</p>
+          </div>
+          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+              <CheckCircle2 className="h-6 w-6 text-green-600" />
+            </div>
+            <p className="text-xs font-bold text-gray-700 text-center">
+              IMEI Verified
+            </p>
+            <p className="text-[10px] text-gray-400">35XXXXX0000X**1</p>
+          </div>
+          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
+            <div className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full">
+              <span className="text-xs font-black text-white">Grade A</span>
+            </div>
+            <p className="text-xs font-bold text-gray-700">Cosmetic Grade</p>
+            <p className="text-[10px] text-gray-400">Like New</p>
+          </div>
+          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+              <span className="text-blue-700 font-black text-sm">55/55</span>
+            </div>
+            <p className="text-xs font-bold text-gray-700 text-center">
+              Functional Check
+            </p>
+            <p className="text-[10px] text-gray-400">All Systems Nominal</p>
+          </div>
+        </div>
+
+        {/* Photo Carousel */}
+        <div>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+            Inspection Photos
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {photos.map((label) => (
+              <div
+                key={label}
+                className="shrink-0 w-20 h-20 rounded-xl bg-gray-100 border border-gray-200 flex flex-col items-center justify-center gap-1"
+              >
+                <div className="w-7 h-7 rounded-full bg-gray-200" />
+                <p className="text-[9px] text-gray-400 text-center px-1 leading-tight">
+                  {label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bidding Engine */}
+        <div
+          className={`rounded-2xl border p-4 ${isFinalPhase ? "bg-yellow-50 border-yellow-400" : "bg-white border-gray-200"}`}
+        >
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+            Current High Bid
+          </p>
+          <p className="text-3xl font-black text-blue-600">{fmt(currentBid)}</p>
+          {isFinalPhase && (
+            <p className="text-xs text-yellow-700 font-semibold mt-1">
+              ⚡ Final 5 Minutes — Priority Phase
+            </p>
+          )}
+
+          {/* Bid log */}
+          <div className="mt-3 space-y-1.5 max-h-28 overflow-y-auto">
+            {bidLog.map((b, i) => (
+              <div
+                key={`bid-${i}-${b.amount}`}
+                className="flex items-center justify-between text-xs"
+                data-ocid={`auction.item.${i + 1}`}
+              >
+                <span className="text-gray-500">{b.dealer}</span>
+                <span
+                  className={`font-bold ${i === 0 ? "text-blue-600" : "text-gray-600"}`}
+                >
+                  {fmt(b.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Quick bid buttons */}
+          <div className="flex gap-2 mt-3">
+            {[100, 500, 1000].map((inc) => (
+              <button
+                key={inc}
+                type="button"
+                onClick={() => handleBid(inc)}
+                disabled={auctionClosed}
+                className="flex-1 py-2 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 transition-colors disabled:opacity-40"
+                data-ocid="auction.toggle"
+              >
+                +{fmt(inc)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Bid confirm overlay */}
+        {bidConfirmed && (
+          <div className="fixed inset-0 z-[64] pointer-events-none flex items-center justify-center">
+            <div className="bg-green-600 text-white font-black px-6 py-3 rounded-2xl shadow-xl text-lg">
+              ✓ Bid Confirmed!
+            </div>
+          </div>
+        )}
+
+        {/* Financial Footer */}
+        <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+            Cost Breakdown
+          </p>
+          <div className="space-y-1.5">
+            {[
+              { label: "Current Bid", val: fmt(currentBid) },
+              { label: `Sourcing Fee (~${fmt(fee)})`, val: `+${fmt(fee)}` },
+              { label: "GST (18% on Fee)", val: `+${fmt(gstOnFee)}` },
+            ].map((row) => (
+              <div key={row.label} className="flex justify-between text-xs">
+                <span className="text-gray-500">{row.label}</span>
+                <span className="text-gray-700 font-semibold">{row.val}</span>
+              </div>
+            ))}
+            <div className="flex justify-between text-sm font-black border-t border-gray-200 pt-2 mt-1">
+              <span className="text-gray-900">Total Payable</span>
+              <span className="text-blue-600">{fmt(totalPayable)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Place Bid button */}
+        <button
+          type="button"
+          onClick={() => handleBid(100)}
+          disabled={auctionClosed}
+          className={`w-full py-4 rounded-2xl font-black text-base transition-all ${
+            auctionClosed
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+          }`}
+          data-ocid="auction.primary_button"
+        >
+          {auctionClosed ? "AUCTION CLOSED" : "Place Bid (+₹100)"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 type FilterTab = "all" | "live" | "7day";
 type NavTab = "home" | "auctions" | "won" | "account";
 
@@ -664,6 +1109,7 @@ export default function B2BBuyerPage() {
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [navTab, setNavTab] = useState<NavTab>("home");
   const [bidTarget, setBidTarget] = useState<B2BListing | null>(null);
+  const [auctionDetail, setAuctionDetail] = useState<B2BListing | null>(null);
   const [invoiceTarget, setInvoiceTarget] = useState<B2BListing | null>(null);
   const [search, setSearch] = useState("");
   const [, forceUpdate] = useState(0);
@@ -710,6 +1156,15 @@ export default function B2BBuyerPage() {
     (l) => l.expiresAt <= Date.now() && !!getMyWinningBid(l.id),
   );
 
+  if (auctionDetail) {
+    return (
+      <AuctionDetailView
+        listing={auctionDetail}
+        onBack={() => setAuctionDetail(null)}
+      />
+    );
+  }
+
   return (
     <>
       <style>{`
@@ -721,6 +1176,10 @@ export default function B2BBuyerPage() {
           0% { box-shadow: 0 0 0 0 rgba(37,99,235,0.4); }
           70% { box-shadow: 0 0 0 10px rgba(37,99,235,0); }
           100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+        }
+        @keyframes confettiFall {
+          0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
         }
       `}</style>
 
@@ -845,13 +1304,21 @@ export default function B2BBuyerPage() {
           ) : (
             <div className="space-y-3">
               {filtered.map((listing, i) => (
-                <AuctionCard
+                <button
                   key={listing.id}
-                  listing={listing}
-                  index={i}
-                  onBid={setBidTarget}
-                  onInvoice={setInvoiceTarget}
-                />
+                  type="button"
+                  onClick={() => setAuctionDetail(listing)}
+                  className="w-full text-left"
+                >
+                  <AuctionCard
+                    listing={listing}
+                    index={i}
+                    onBid={(l) => {
+                      setBidTarget(l);
+                    }}
+                    onInvoice={setInvoiceTarget}
+                  />
+                </button>
               ))}
             </div>
           )}

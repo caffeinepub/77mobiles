@@ -261,11 +261,7 @@ function DemoListingDetail({ listingId }: { listingId: string }) {
   const listing = DEMO_LISTINGS.find((d) => d.id === listingId);
 
   const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate({ to: -1 as any });
-    } else {
-      navigate({ to: "/" });
-    }
+    navigate({ to: "/" });
   };
 
   const [chatHovered, setChatHovered] = useState(false);
@@ -542,11 +538,7 @@ function RealListingDetail({ listingId }: { listingId: string }) {
   );
 
   const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate({ to: -1 as any });
-    } else {
-      navigate({ to: "/" });
-    }
+    navigate({ to: "/" });
   };
 
   // Defensive principal comparison — handles both .toText() (IC Principal) and .toString()

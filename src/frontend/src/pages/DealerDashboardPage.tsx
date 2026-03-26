@@ -10,9 +10,11 @@ import {
   Gavel,
   IndianRupee,
   Layers,
+  ScanLine,
   ShoppingBag,
   Store,
   TrendingUp,
+  Wallet,
   XCircle,
 } from "lucide-react";
 import {
@@ -231,15 +233,28 @@ export default function DealerDashboardPage() {
               </Badge>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExit}
-            className="border-white/40 text-white hover:bg-white/10 hover:border-white/60 gap-1.5 bg-transparent"
-            data-ocid="dealer.close_button"
-          >
-            Switch to Consumer Mode
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link to="/dealer/wallet">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-white/40 text-white hover:bg-white/10 hover:border-white/60 gap-1.5 bg-transparent"
+                data-ocid="dealer.wallet.link"
+              >
+                <Wallet className="h-4 w-4" />
+                Wallet
+              </Button>
+            </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExit}
+              className="border-white/40 text-white hover:bg-white/10 hover:border-white/60 gap-1.5 bg-transparent"
+              data-ocid="dealer.close_button"
+            >
+              Switch to Consumer Mode
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -304,6 +319,25 @@ export default function DealerDashboardPage() {
             </Link>
           </div>
         </div>
+
+        {/* Scan Device CTA */}
+        <Link to="/dealer/diagnostic">
+          <div
+            className="flex items-center gap-4 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl px-5 py-4 hover:from-blue-500 hover:to-indigo-600 transition-all cursor-pointer shadow-md"
+            data-ocid="dealer.scan.primary_button"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+              <ScanLine className="h-6 w-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="font-black text-white text-base">Scan Device</p>
+              <p className="text-blue-200 text-xs mt-0.5">
+                USB Smart-Scan — 55-point health check in 90s
+              </p>
+            </div>
+            <ArrowRight className="h-5 w-5 text-white/70" />
+          </div>
+        </Link>
 
         {/* Stats */}
         <div>

@@ -107,6 +107,13 @@ function SellInstantBanner() {
 
 export default function HomePage() {
   const searchParams = useSearch({ strict: false }) as { q?: string };
+  const [skeletonVisible, setSkeletonVisible] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSkeletonVisible(false), 1200);
+    return () => clearTimeout(t);
+  }, []);
+
   const [category, setCategory] = useState<CategoryId>("all");
   const [searchQuery, setSearchQuery] = useState(searchParams.q ?? "");
   const [inputValue, setInputValue] = useState(searchParams.q ?? "");
@@ -227,6 +234,47 @@ export default function HomePage() {
   }, [filteredListings, brandFilter, conditionFilter, budgetFilter, sortOrder]);
 
   const hasItems = !isLoading && allItems.length > 0;
+
+  if (skeletonVisible) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f5]" data-ocid="home.loading_state">
+        <div className="bg-white sticky top-0 z-40 px-4 pt-3 pb-3 space-y-3">
+          <div className="h-10 bg-gray-200 rounded-xl animate-pulse" />
+          <div className="h-8 bg-gray-100 rounded-lg animate-pulse" />
+          <div className="flex gap-2 overflow-hidden pb-1">
+            {["phones", "macbooks", "watches", "earphones", "all"].map((id) => (
+              <div
+                key={id}
+                className="flex flex-col items-center gap-1 shrink-0"
+              >
+                <div className="w-12 h-12 rounded-full bg-gray-200 animate-pulse" />
+                <div className="w-10 h-2.5 bg-gray-200 rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="px-4 py-3">
+          <div className="h-16 bg-white rounded-2xl border border-gray-100 animate-pulse mb-3" />
+          <div className="h-32 bg-white rounded-2xl border border-gray-100 animate-pulse mb-3" />
+        </div>
+        <div className="bg-white">
+          {["card-a", "card-b", "card-c"].map((id) => (
+            <div
+              key={id}
+              className="flex gap-3 px-4 py-3 border-b border-gray-100"
+            >
+              <div className="w-20 h-20 rounded-xl bg-gray-200 animate-pulse shrink-0" />
+              <div className="flex-1 space-y-2 pt-1">
+                <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2" />
+                <div className="h-2.5 bg-gray-100 rounded animate-pulse w-2/3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f5f5]">

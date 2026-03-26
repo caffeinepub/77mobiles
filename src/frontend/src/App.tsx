@@ -19,11 +19,14 @@ import {
 } from "./hooks/useQueries";
 import AccessoriesStorePage from "./pages/AccessoriesStorePage";
 import AdminPage from "./pages/AdminPage";
+import AuctionCheckoutPage from "./pages/AuctionCheckoutPage";
 import B2BBuyerPage from "./pages/B2BBuyerPage";
 import B2BSellerPage from "./pages/B2BSellerPage";
 import ChatScreen from "./pages/ChatScreen";
 import DealerDashboardPage from "./pages/DealerDashboardPage";
 import DealerSignupPage from "./pages/DealerSignupPage";
+import DealerWalletPage from "./pages/DealerWalletPage";
+import DiagnosticBridgePage from "./pages/DiagnosticBridgePage";
 import EVChargingPage from "./pages/EVChargingPage";
 import HomePage from "./pages/HomePage";
 import InstantBuyPage from "./pages/InstantBuyPage";
@@ -32,8 +35,10 @@ import LoginPage from "./pages/LoginPage";
 import MessagesPage from "./pages/MessagesPage";
 import MyAdsPage from "./pages/MyAdsPage";
 import NewPhoneStore from "./pages/NewPhoneStore";
+import OrderFulfillmentPage from "./pages/OrderFulfillmentPage";
 import PostAdPage from "./pages/PostAdPage";
 import ProfilePage from "./pages/ProfilePage";
+import SecondChancePage from "./pages/SecondChancePage";
 import VendorDashboardPage from "./pages/VendorDashboardPage";
 
 const DEALER_MODE_KEY = "77mobiles_dealer_mode";
@@ -183,6 +188,34 @@ const evChargingRoute = createRoute({
   component: EVChargingPage,
 });
 
+// Dealer sub-routes
+const dealerCheckoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dealer/checkout/$auctionId",
+  component: AuctionCheckoutPage,
+});
+const dealerSecondChanceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dealer/second-chance/$auctionId",
+  component: SecondChancePage,
+});
+const dealerOrderRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dealer/order/$orderId",
+  component: OrderFulfillmentPage,
+});
+const dealerWalletRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dealer/wallet",
+  component: DealerWalletPage,
+});
+
+const dealerDiagnosticRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dealer/diagnostic",
+  component: DiagnosticBridgePage,
+});
+
 const notFoundRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "$",
@@ -220,6 +253,10 @@ const routeTree = rootRoute.addChildren([
   adminRoute,
   b2bRoute,
   dealerRoute,
+  dealerCheckoutRoute,
+  dealerSecondChanceRoute,
+  dealerOrderRoute,
+  dealerWalletRoute,
   vendorRoute,
   accessoriesStoreRoute,
   newPhonesRoute,
@@ -227,6 +264,7 @@ const routeTree = rootRoute.addChildren([
   b2bBuyerRoute,
   loginRoute,
   evChargingRoute,
+  dealerDiagnosticRoute,
   notFoundRoute,
 ]);
 

@@ -1,43 +1,48 @@
 # 77mobiles
 
 ## Current State
-Full-stack marketplace app with home feed, listings, OLX-style chat, B2B dealer platform, accessories store, affiliate store, admin panel, and bottom navigation.
+- EVChargingPage uses OpenStreetMap (iframe) with static hardcoded EV station list and basic autocomplete from a local array of Hyderabad localities
+- No radius-based search expansion logic (5km → 15km fallback)
+- No fitBounds auto-zoom, no distance/ETA shown in station bottom sheet
+- Back navigation in ListingDetailPage uses `navigate({ to: -1 })` which can fail if history is shallow (causes 404)
+- No B2B Master Phone Diagnostic Bridge UI exists
+- No Fast/Slow (DC/AC) connector filtering on EV map
+- No marker clustering UI
+- No 'No Stations Found' empty state with expand logic
 
 ## Requested Changes (Diff)
 
 ### Add
-- EV Charging screen at `/ev-charging` with OpenStreetMap filtered for EV stations, custom green pins, bottom sheet on pin tap, floating Locate Me button, search bar
-- EV Charging carousel slide replacing "Sell Your Device" slide
-- isDealerModeActive flag in localStorage; on app init route to /dealer if true
-- "Switch to Consumer Mode" button in Dealer Portal account/profile section
-- Feature Ad promotion card on My Ads screen (megaphone icon, "Want to sell it faster?", "Feature Ad Now" CTA)
-- Feature Packages popup/overlay triggered from My Ads
+- **EV Finder enhancements**: Simulated onCameraIdle trigger (re-fetch pins after map settles), 5km search radius logic that auto-expands to 15km if 0 stations found, fitBounds auto-zoom showing all pins, 'No Stations Found' empty state card with 'Notify Me' button, distance and ETA in station bottom sheet, 'GET DIRECTIONS' deep link opening `https://maps.google.com/?q=lat,lng` in new tab, Fast (DC) vs Slow (AC) connector type badges, cluster count badge when many stations in an area
+- **DiagnosticBridgePage** at `/dealer/diagnostic`: Two entry points (Manual Form / USB Smart-Scan), animated USB handshake flow, 55-point health check progress simulation, auto-populated listing form with Brand/Model/Storage/IMEI fields, Root/Jailbreak detection indicator, AI Cosmetic Inspection 6-photo sequence UI, tamper-proof badge on successful scan
+- Route `/dealer/diagnostic` in App.tsx
+- Link from DealerDashboardPage to `/dealer/diagnostic` (new 'Scan Device' button)
 
 ### Modify
-- Inbox/Chat screens: hide bottom nav completely (100% full screen), remove B2B/Dealer Zone banner
-- Inbox header: "Edit" left, "Inbox" center, search icon right; remove Selling/Buying tabs → unified list; keep package expired banner; add QUICK FILTERS pills (All, Unread, Important)
-- Individual chat screen: full screen, back arrow, avatar+item thumbnail+price in header, grey background for messages, sticky input bar with "+" attachment + text + send; zero-state shows grey speech bubble + "No conversations yet" + "Browse Listings" button
-- Back button on PDP: navigate to previous page or fallback to /home
-- My Ads screen: hide B2B/Dealer Zone banner and 77mobiles logo; center bold uppercase "MY ADS" title; keep package expired alert; group ads by date; card has thumbnail, title, price, views, likes, SOLD badge; "Remove" button white/blue border; "View all (31)" filter dropdown; My Ads icon highlighted blue in bottom nav
-- Dealer Dashboard (/dealer): hide top branding bar, hide dark green sub-header, hide bottom nav → 100% full screen starting with blue 77mobiles.pro header
-- Bottom nav Sell button: change to "Check Price" blue (primary blue #3B82F6), keep yellow ring, white plus and label
-- Bottom nav Home icon active state: change to primary blue
-- All primary CTA buttons app-wide: use consistent primary blue
-- Inter/Roboto font applied app-wide
-- Primary text color dark blue #002f34 style
+- **EVChargingPage**: Replace static station list with search-radius logic; show 'Search this area' button after map pan, expand to 15km if 5km yields 0; add Fast/Slow filter tabs; improve station card to show distance and connector type color-coded (green=fast/DC, blue=slow/AC); 'Navigate' button opens deep link; improve back nav to always use `navigate({ to: '/' })` as fallback
+- **ListingDetailPage**: Fix `handleBack` — change from `navigate({ to: -1 as any })` to `navigate({ to: '/' })` always, so back from a listing never 404s
 
 ### Remove
-- Selling/Buying tabs from Inbox
-- B2B/Dealer Zone banner from Inbox, My Ads, and Dealer Dashboard screens
-- "Register as Dealer" button from Inbox area
+- Nothing removed
 
 ## Implementation Plan
-1. Update Inbox component: full-screen, remove bottom nav when active, new header (Edit/Inbox/Search), remove tabs, unified conversation list, QUICK FILTERS pills, keep package expired banner
-2. Update individual Chat screen: full-screen no bottom nav, new header with back+avatar+item info, grey message background, sticky input with attachment/text/send, zero-state with speech bubble
-3. Add EV Charging carousel slide and /ev-charging route with map, pins, search, locate me
-4. Update My Ads: hide B2B banner, center MY ADS title, package expired banner, grouped-by-date feed, feature promotion card, filter dropdown
-5. Update Dealer Dashboard: hide all standard headers and bottom nav for full-screen
-6. Add isDealerModeActive localStorage logic: check on app init, route to /dealer if true; add exit button in dealer profile
-7. Update bottom nav: Sell button to primary blue, Home active state to primary blue
-8. Apply consistent primary blue to all CTA buttons app-wide
-9. Back button fallback to /home when navigation stack is empty
+1. Update `EVChargingPage.tsx`:
+   - Add `searchRadius` state (5000 | 15000), `noStationsFound` boolean, `isSearching` boolean
+   - Add `filterType` state: 'all' | 'fast' | 'slow' with Fast/Slow tab pills
+   - Classify stations: Fast = has 'CCS' or 'CHAdeMO'; Slow = only 'Type 2'
+   - Add more Hyderabad stations (10+ total) with Fast/Slow classification
+   - Show 'Search this area' floating button after 3s of no interaction
+   - If filtered count === 0 for 5km, show expansion logic (auto-expand with 15km label)
+   - Show 'No Stations Found' card if 15km also fails
+   - Station bottom sheet: show connector types, estimated distance (calculated from center), 'GET DIRECTIONS' button with deep link
+   - Add 'Only showing fast (DC) chargers' label when filter active
+2. Create `DiagnosticBridgePage.tsx`:
+   - Step 1: Entry switcher — Manual Form or USB Smart-Scan cards
+   - Step 2 (USB path): Connection animation with OTG cable illustration + progress steps (Connecting → Handshake → Extracting)
+   - Step 3: 55-point health check progress bar + animated checklist items
+   - Step 4: Results form with auto-filled Brand, Model, Storage, RAM, IMEI 1 & 2, Battery Health %, Root Status
+   - Step 5: 6-shot cosmetic photo sequence UI with camera placeholder and IMEI validation gate
+   - 'Submit Listing' button at end
+3. Fix `ListingDetailPage.tsx` handleBack to use `navigate({ to: '/' })` instead of `navigate({ to: -1 })`
+4. Add `/dealer/diagnostic` route in `App.tsx`
+5. Add 'Scan Device' button in DealerDashboardPage linking to `/dealer/diagnostic`
