@@ -1,7 +1,8 @@
 import { ExternalBlob, type Listing } from "@/backend";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Shield, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import SellerFormWizard, {
   type SellerFormData,
@@ -16,42 +17,6 @@ import {
 const NAVY = "#0a1929";
 
 function getBrandCategory(brand: string): ListingCategory {
-  const phoneBrands = [
-    "Apple",
-    "iPhone",
-    "Samsung",
-    "OnePlus",
-    "Google Pixel",
-    "Xiaomi",
-    "Mi",
-    "Redmi",
-    "POCO",
-    "iQOO",
-    "Realme",
-    "Vivo",
-    "OPPO",
-    "Oppo",
-    "Nothing",
-    "Motorola",
-    "Infinix",
-    "Tecno",
-    "Nokia",
-    "Sony Xperia",
-    "Honor",
-    "Asus",
-    "BlackBerry",
-    "Gionee",
-    "HTC",
-    "Huawei",
-    "Intex",
-    "Lava",
-    "Lenovo",
-    "LG",
-    "Meizu",
-    "Micromax",
-    "Panasonic",
-    "ZTE",
-  ];
   const macbookBrands = ["MacBook"];
   const watchBrands = [
     "Apple Watch",
@@ -70,15 +35,12 @@ function getBrandCategory(brand: string): ListingCategory {
     "Skullcandy",
     "Sennheiser",
   ];
-
   if (macbookBrands.some((b) => brand.toLowerCase().includes(b.toLowerCase())))
     return ListingCategory.macbooks;
   if (watchBrands.some((b) => brand.toLowerCase().includes(b.toLowerCase())))
     return ListingCategory.watches;
   if (earphoneBrands.some((b) => brand.toLowerCase().includes(b.toLowerCase())))
     return ListingCategory.earphones;
-  if (phoneBrands.some((b) => brand.toLowerCase().includes(b.toLowerCase())))
-    return ListingCategory.phones;
   return ListingCategory.phones;
 }
 
@@ -98,8 +60,17 @@ export default function PostAdPage() {
   const isAuthenticated = !!identity;
   const isLoggingIn = loginStatus === "logging-in";
   const { mutateAsync: createListing, isPending } = useCreateListing();
+  const [showDiagnosticGate, setShowDiagnosticGate] = useState(true);
 
-  // ── Login wall ──────────────────────────────────────────────────────────
+  // On mount, check if diagnostic report is available
+  useEffect(() => {
+    const report = localStorage.getItem("diagnostic_report");
+    if (report) {
+      // Already has diagnostic, skip gate
+      setShowDiagnosticGate(false);
+    }
+  }, []);
+
   if (!isAuthenticated) {
     return (
       <div
@@ -142,8 +113,6 @@ export default function PostAdPage() {
       toast.error("Please enter a valid price");
       return;
     }
-
-    // Upload photos — skip any that fail
     let photoBlobs: ExternalBlob[] = [];
     if (data.photos.length > 0) {
       const results = await Promise.allSettled(
@@ -156,7 +125,6 @@ export default function PostAdPage() {
         .filter((r) => r.status === "fulfilled")
         .map((r) => (r as PromiseFulfilledResult<ExternalBlob>).value);
     }
-
     const listing: Listing = {
       id: "",
       title: data.title.trim(),
@@ -169,18 +137,94 @@ export default function PostAdPage() {
       condition: getConditionEnum(data.condition),
       images: photoBlobs,
     };
-
     try {
       await createListing(listing);
+      localStorage.removeItem("diagnostic_report");
       toast.success("Ad posted successfully! 🎉");
       navigate({ to: "/" });
     } catch (err) {
       console.error("createListing failed:", err);
-      // Show success anyway — ad may have posted despite error
       toast.success("Ad posted successfully! 🎉");
       navigate({ to: "/" });
     }
   };
+
+  // Diagnostic gate overlay
+  if (showDiagnosticGate) {
+    return (
+      <div
+        className="fixed inset-0 z-50 bg-white flex flex-col"
+        data-ocid="diagnostic_gate.modal"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <h2 className="font-bold text-gray-900">Post Your Device</h2>
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/" })}
+            className="p-1.5 rounded-full hover:bg-gray-100"
+            data-ocid="diagnostic_gate.close_button"
+          >
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
+          <div className="text-6xl mb-4">🔬</div>
+          <h3 className="text-2xl font-bold text-gray-900 text-center mb-2">
+            Verify Your Device
+          </h3>
+          <p className="text-gray-500 text-sm text-center mb-8">
+            Verified listings sell{" "}
+            <span className="text-blue-600 font-bold">3x faster</span>
+          </p>
+
+          {/* Option 1: Verify & Post */}
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/dealer/diagnostic" })}
+            className="w-full max-w-sm bg-blue-600 hover:bg-blue-700 text-white rounded-2xl p-4 mb-3 flex items-center gap-4 transition-colors text-left"
+            data-ocid="diagnostic_gate.primary_button"
+          >
+            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              <Shield className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <p className="font-bold text-white">
+                Verify &amp; Post (Recommended)
+              </p>
+              <p className="text-blue-200 text-xs mt-0.5">
+                Run 55-point hardware check for a trust badge
+              </p>
+            </div>
+          </button>
+
+          {/* Option 2: Manual */}
+          <button
+            type="button"
+            onClick={() => setShowDiagnosticGate(false)}
+            className="w-full max-w-sm border-2 border-gray-200 hover:border-gray-300 text-gray-600 rounded-2xl p-4 flex items-center gap-4 transition-colors text-left"
+            data-ocid="diagnostic_gate.secondary_button"
+          >
+            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+              <X className="h-6 w-6 text-gray-400" />
+            </div>
+            <div>
+              <p className="font-bold text-gray-700">Manual Post</p>
+              <p className="text-gray-400 text-xs mt-0.5">
+                Continue without verification
+              </p>
+            </div>
+          </button>
+
+          <div className="mt-6 flex items-center gap-2 text-xs text-gray-400">
+            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+            <span>Verified badges get 3x more leads on 77mobiles</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <SellerFormWizard

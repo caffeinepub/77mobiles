@@ -19,27 +19,37 @@ import {
 } from "./hooks/useQueries";
 import AccessoriesStorePage from "./pages/AccessoriesStorePage";
 import AdminPage from "./pages/AdminPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import ArticleDetailPage from "./pages/ArticleDetailPage";
 import AuctionCheckoutPage from "./pages/AuctionCheckoutPage";
 import B2BBuyerPage from "./pages/B2BBuyerPage";
+import B2BListingDetailPage from "./pages/B2BListingDetailPage";
 import B2BSellerPage from "./pages/B2BSellerPage";
+import B2BSoldDetailPage from "./pages/B2BSoldDetailPage";
 import ChatScreen from "./pages/ChatScreen";
+import DealSuccessPage from "./pages/DealSuccessPage";
 import DealerDashboardPage from "./pages/DealerDashboardPage";
 import DealerSignupPage from "./pages/DealerSignupPage";
 import DealerWalletPage from "./pages/DealerWalletPage";
 import DiagnosticBridgePage from "./pages/DiagnosticBridgePage";
+import DiagnosticSuccessPage from "./pages/DiagnosticSuccessPage";
 import EVChargingPage from "./pages/EVChargingPage";
 import HomePage from "./pages/HomePage";
 import InstantBuyPage from "./pages/InstantBuyPage";
+import LeaderboardPage from "./pages/LeaderboardPage";
 import ListingDetailPage from "./pages/ListingDetailPage";
 import LoginPage from "./pages/LoginPage";
 import MessagesPage from "./pages/MessagesPage";
 import MyAdsPage from "./pages/MyAdsPage";
 import NewPhoneStore from "./pages/NewPhoneStore";
+import NewsPage from "./pages/NewsPage";
 import OrderFulfillmentPage from "./pages/OrderFulfillmentPage";
 import PostAdPage from "./pages/PostAdPage";
 import ProfilePage from "./pages/ProfilePage";
+import RewardsPage from "./pages/RewardsPage";
 import SecondChancePage from "./pages/SecondChancePage";
 import VendorDashboardPage from "./pages/VendorDashboardPage";
+import WalletPage from "./pages/WalletPage";
 
 const DEALER_MODE_KEY = "77mobiles_dealer_mode";
 
@@ -51,7 +61,6 @@ function RootLayout() {
   const showProfileSetup =
     !!identity && !isLoading && isFetched && profile === null;
 
-  // Dealer mode persistence: on mount, check localStorage and redirect
   useEffect(() => {
     const isDealerMode = localStorage.getItem(DEALER_MODE_KEY);
     if (isDealerMode === "true") {
@@ -188,6 +197,43 @@ const evChargingRoute = createRoute({
   component: EVChargingPage,
 });
 
+// New routes
+const newsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/news",
+  component: NewsPage,
+});
+const articleDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/news/$articleId",
+  component: ArticleDetailPage,
+});
+const analyticsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/analytics",
+  component: AnalyticsPage,
+});
+const dealSuccessRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/deal-success",
+  component: DealSuccessPage,
+});
+const walletRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/wallet",
+  component: WalletPage,
+});
+const b2bListingDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/b2b-seller/$listingId",
+  component: B2BListingDetailPage,
+});
+const b2bSoldDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/b2b-sold/$listingId",
+  component: B2BSoldDetailPage,
+});
+
 // Dealer sub-routes
 const dealerCheckoutRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -209,7 +255,21 @@ const dealerWalletRoute = createRoute({
   path: "/dealer/wallet",
   component: DealerWalletPage,
 });
-
+const diagnosticSuccessRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/diagnostic-success",
+  component: DiagnosticSuccessPage,
+});
+const rewardsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/rewards",
+  component: RewardsPage,
+});
+const leaderboardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/leaderboard",
+  component: LeaderboardPage,
+});
 const dealerDiagnosticRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dealer/diagnostic",
@@ -262,9 +322,19 @@ const routeTree = rootRoute.addChildren([
   newPhonesRoute,
   b2bSellerRoute,
   b2bBuyerRoute,
+  b2bListingDetailRoute,
+  b2bSoldDetailRoute,
   loginRoute,
   evChargingRoute,
   dealerDiagnosticRoute,
+  diagnosticSuccessRoute,
+  rewardsRoute,
+  leaderboardRoute,
+  newsRoute,
+  articleDetailRoute,
+  analyticsRoute,
+  dealSuccessRoute,
+  walletRoute,
   notFoundRoute,
 ]);
 

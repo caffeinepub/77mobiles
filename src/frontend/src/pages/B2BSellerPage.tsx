@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+import { useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
   CheckCircle2,
@@ -407,6 +408,11 @@ export default function B2BSellerPage() {
   const [listings, setListings] = useState<B2BListing[]>([]);
   const [postOpen, setPostOpen] = useState(false);
   const [acceptTarget, setAcceptTarget] = useState<B2BListing | null>(null);
+  const [demoMode, setDemoMode] = useState(false);
+  const [activeStatFilter, setActiveStatFilter] = useState<
+    "all" | "active" | "sold"
+  >("all");
+  const navigate = useNavigate();
   const listingsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -526,7 +532,14 @@ export default function B2BSellerPage() {
             ].map((s) => (
               <Card
                 key={s.label}
-                className="bg-white border-gray-200 shadow-sm rounded-2xl"
+                className={`bg-white shadow-sm rounded-2xl cursor-pointer transition-all ${activeStatFilter === s.label.toLowerCase() ? "border-2 border-blue-500 shadow-blue-200" : "border-gray-200"}`}
+                onClick={() =>
+                  setActiveStatFilter(
+                    (s.label.toLowerCase() === "total"
+                      ? "all"
+                      : s.label.toLowerCase()) as any,
+                  )
+                }
               >
                 <CardContent className="p-3 text-center">
                   <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
@@ -535,6 +548,109 @@ export default function B2BSellerPage() {
               </Card>
             ))}
           </div>
+
+          {/* Demo Mode Toggle */}
+          <div className="flex items-center justify-between bg-white rounded-2xl border border-blue-100 shadow-sm px-4 py-3 mb-4">
+            <div>
+              <p className="text-sm font-bold text-gray-900">Demo Mode</p>
+              <p className="text-xs text-gray-500">Preview Verified listings</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDemoMode((v) => !v)}
+              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${demoMode ? "bg-blue-600" : "bg-gray-300"}`}
+              data-ocid="seller.toggle"
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${demoMode ? "translate-x-6" : "translate-x-1"}`}
+              />
+            </button>
+          </div>
+
+          {/* Demo Verified Listings */}
+          {demoMode && (
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base font-bold text-gray-900">
+                  ✓ Verified Demo Listings
+                </span>
+                <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">
+                  DEMO
+                </span>
+              </div>
+              <div className="space-y-3">
+                {[
+                  {
+                    name: "iPhone 14 Pro 256GB",
+                    score: 91,
+                    price: "₹72,000",
+                    brand: "Apple",
+                    storage: "256GB",
+                  },
+                  {
+                    name: "Samsung Galaxy S23 Ultra",
+                    score: 88,
+                    price: "₹58,500",
+                    brand: "Samsung",
+                    storage: "512GB",
+                  },
+                  {
+                    name: "OnePlus 12 256GB",
+                    score: 94,
+                    price: "₹41,000",
+                    brand: "OnePlus",
+                    storage: "256GB",
+                  },
+                  {
+                    name: "Google Pixel 8 Pro",
+                    score: 87,
+                    price: "₹63,000",
+                    brand: "Google",
+                    storage: "128GB",
+                  },
+                  {
+                    name: "Xiaomi 14 Ultra 512GB",
+                    score: 92,
+                    price: "₹49,500",
+                    brand: "Xiaomi",
+                    storage: "512GB",
+                  },
+                ].map((item, i) => (
+                  <div
+                    key={item.name}
+                    className="bg-white rounded-2xl border border-green-100 shadow-sm p-4 flex gap-3 items-center"
+                    data-ocid={`seller.item.${i + 1}`}
+                  >
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-100 to-teal-100 flex items-center justify-center shrink-0">
+                      <span className="text-2xl">📱</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm font-bold text-gray-900 truncate">
+                          {item.name}
+                        </p>
+                        <span className="shrink-0 text-[10px] font-bold bg-green-500 text-white rounded-full px-2 py-0.5">
+                          ✓ VERIFIED
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">Health:</span>
+                        <span className="text-xs font-bold text-[#1A56DB]">
+                          {item.score}/100
+                        </span>
+                        <span className="text-[10px] text-green-600">🔋✓</span>
+                        <span className="text-[10px] text-green-600">📱✓</span>
+                        <span className="text-[10px] text-green-600">👆✓</span>
+                      </div>
+                    </div>
+                    <p className="text-base font-black text-[#1A56DB] shrink-0">
+                      {item.price}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* My Listings */}
           <div ref={listingsRef}>
@@ -558,14 +674,28 @@ export default function B2BSellerPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {listings.map((listing, i) => (
-                  <ListingCard
+                {(activeStatFilter === "all"
+                  ? listings
+                  : listings.filter((l) => l.status === activeStatFilter)
+                ).map((listing, i) => (
+                  <button
                     key={listing.id}
-                    listing={listing}
-                    index={i}
-                    onMove={handleMove}
-                    onAcceptDeal={setAcceptTarget}
-                  />
+                    type="button"
+                    onClick={() =>
+                      navigate({
+                        to: "/b2b-seller/$listingId",
+                        params: { listingId: listing.id },
+                      })
+                    }
+                    className="w-full text-left"
+                  >
+                    <ListingCard
+                      listing={listing}
+                      index={i}
+                      onMove={handleMove}
+                      onAcceptDeal={setAcceptTarget}
+                    />
+                  </button>
                 ))}
               </div>
             )}

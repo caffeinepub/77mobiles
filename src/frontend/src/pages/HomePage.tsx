@@ -1,9 +1,10 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Link, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import {
   AlertCircle,
   MapPin,
+  Navigation,
   PlusCircle,
   Search,
   Truck,
@@ -19,7 +20,6 @@ import { ListingCategory, useListings } from "../hooks/useQueries";
 import type { Listing } from "../hooks/useQueries";
 import { haversine, parseGeoLocation } from "../utils/geo";
 
-// SVG icons matching the line-art style of Phones/Watches
 function GridIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -43,10 +43,10 @@ function GridIcon({ className }: { className?: string }) {
 
 const CATEGORIES = [
   { id: "all", label: "All", useGridIcon: true },
-  { id: ListingCategory.phones, label: "Phones", emoji: "📱" },
-  { id: ListingCategory.macbooks, label: "MacBooks", emoji: "💻" },
-  { id: ListingCategory.watches, label: "Watches", emoji: "⌚" },
-  { id: ListingCategory.earphones, label: "Earphones", emoji: "🎧" },
+  { id: ListingCategory.phones, label: "Phones", emoji: "\ud83d\udcf1" },
+  { id: ListingCategory.macbooks, label: "MacBooks", emoji: "\ud83d\udcbb" },
+  { id: ListingCategory.watches, label: "Watches", emoji: "\u231a" },
+  { id: ListingCategory.earphones, label: "Earphones", emoji: "\ud83c\udfa7" },
 ] as const;
 
 type CategoryId = (typeof CATEGORIES)[number]["id"];
@@ -57,7 +57,356 @@ interface GeoFilter {
   radiusKm: number;
 }
 
-// ── Sell Instant Banner (white + blue) ────────────────────────────────────────
+// ── Tech Hub Slider ───────────────────────────────────────────────────────────
+const NEWS_ARTICLES = [
+  {
+    id: "1",
+    headline:
+      "Samsung Galaxy S26 Ultra: First Leaked Specs Reveal 200MP Camera",
+    author: "Rohit Sharma",
+    timeAgo: "2h ago",
+    bg: "from-blue-600 to-indigo-800",
+  },
+  {
+    id: "2",
+    headline:
+      "iPhone 17 Pro Display: Revolutionary Under-Screen Camera Confirmed",
+    author: "Priya Mehta",
+    timeAgo: "4h ago",
+    bg: "from-gray-800 to-gray-900",
+  },
+  {
+    id: "3",
+    headline: "Snapdragon 8 Gen 4: Qualcomm's Next Flagship Chip Details Leak",
+    author: "Arjun Das",
+    timeAgo: "6h ago",
+    bg: "from-violet-700 to-purple-900",
+  },
+  {
+    id: "4",
+    headline: "Google Pixel 10 Pro: Tensor G5 Chip to Challenge Apple Silicon",
+    author: "Neha Singh",
+    timeAgo: "8h ago",
+    bg: "from-green-700 to-teal-900",
+  },
+  {
+    id: "5",
+    headline: "OnePlus 13T: Leaked Renders Show Triple Periscope Camera System",
+    author: "Vikram Rao",
+    timeAgo: "12h ago",
+    bg: "from-red-700 to-orange-800",
+  },
+  {
+    id: "6",
+    headline:
+      "Sell Your Device Now: Get Best Price for Used Phones in Hyderabad",
+    author: "77mobiles Team",
+    timeAgo: "1d ago",
+    bg: "from-blue-500 to-cyan-600",
+    isSellSlide: true,
+  },
+];
+
+function TechHubSlider() {
+  const navigate = useNavigate();
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(
+      () => setIdx((i) => (i + 1) % NEWS_ARTICLES.length),
+      5000,
+    );
+    return () => clearInterval(t);
+  }, []);
+
+  const article = NEWS_ARTICLES[idx];
+
+  return (
+    <div className="px-4 pb-3 bg-white">
+      <button
+        type="button"
+        onClick={() => navigate({ to: "/news" })}
+        className="relative w-full rounded-2xl overflow-hidden shadow-md"
+        style={{ height: 160 }}
+        data-ocid="home.link"
+      >
+        <div className={`absolute inset-0 bg-gradient-to-br ${article.bg}`} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+        {/* NEWS badge */}
+        <div className="absolute top-3 left-3">
+          <span className="bg-blue-500 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wide">
+            NEWS
+          </span>
+        </div>
+        {/* Content bottom */}
+        <div className="absolute bottom-3 left-3 right-3">
+          <p className="text-white font-bold text-sm leading-snug line-clamp-2 drop-shadow">
+            {article.headline}
+          </p>
+          <p className="text-white/70 text-[11px] mt-1">
+            {article.author} &bull; {article.timeAgo}
+          </p>
+          {(article as any).isSellSlide && (
+            <span className="inline-block mt-1 bg-white text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
+              Check Price →
+            </span>
+          )}
+        </div>
+      </button>
+      {/* Dots */}
+      <div className="flex justify-center gap-1.5 mt-2">
+        {NEWS_ARTICLES.map((a, i) => (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => setIdx(i)}
+            className={`h-1.5 rounded-full transition-all ${i === idx ? "w-4 bg-blue-500" : "w-1.5 bg-gray-300"}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── EV Station Card ───────────────────────────────────────────────────────────
+function EVStationCard() {
+  const navigate = useNavigate();
+  const launchNav = () => {
+    const url =
+      "https://www.google.com/maps/dir/?api=1&destination=17.428,78.455";
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <div
+      className="relative mx-0 bg-gradient-to-br from-green-600 to-teal-700 rounded-[12px] overflow-hidden"
+      data-ocid="home.card"
+    >
+      {/* Available badge */}
+      <div className="absolute top-3 right-3 bg-white/90 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+        3/4 Available
+      </div>
+
+      <div className="p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-2xl">⚡</span>
+          <div>
+            <p className="font-bold text-white text-sm leading-tight">
+              Tata Power EZ Charge
+            </p>
+            <p className="text-white/70 text-xs">Somajiguda, Hyderabad</p>
+          </div>
+        </div>
+
+        {/* Connector icons */}
+        <div className="flex gap-2 mb-3">
+          <span className="bg-white/20 text-white text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-1">
+            ⚡ CCS2 (60kW)
+          </span>
+          <span className="bg-white/20 text-white text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-1">
+            🔌 Type 2
+          </span>
+        </div>
+
+        {/* 77 Rewards banner */}
+        <div className="bg-white/15 rounded-xl px-3 py-2 mb-3 flex items-center gap-2">
+          <span className="text-yellow-300 text-sm">🪙</span>
+          <p className="text-white text-xs font-semibold">
+            77 Rewards: Report Status — Earn +10 Points
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={launchNav}
+            className="flex-1 bg-white text-green-700 text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5"
+            data-ocid="home.primary_button"
+          >
+            <Navigation className="h-3.5 w-3.5" /> Get Directions
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/ev-charging" })}
+            className="flex-1 bg-white/20 text-white text-xs font-bold py-2 rounded-xl"
+            data-ocid="home.secondary_button"
+          >
+            View Details
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Demo Listing Card ─────────────────────────────────────────────────────────
+interface DemoItem {
+  id: string;
+  title: string;
+  price: number;
+  location: string;
+  isVerified?: boolean;
+  battery?: number;
+  isFeatured?: boolean;
+  isAuctionLive?: boolean;
+  isProScout?: boolean;
+  emoji: string;
+  timeAgo: string;
+}
+
+const DEMO_LISTINGS: DemoItem[] = [
+  {
+    id: "d1",
+    title: "iPhone 15 Pro 256GB Natural Titanium",
+    price: 79000,
+    location: "Ward 32, Patthergatti, Hyderabad",
+    isVerified: true,
+    battery: 94,
+    isFeatured: true,
+    emoji: "\ud83d\udcf1",
+    timeAgo: "2h ago",
+  },
+  {
+    id: "d2",
+    title: "Samsung Galaxy S24 Ultra 512GB",
+    price: 95000,
+    location: "Ward 32, Patthergatti, Hyderabad",
+    isVerified: true,
+    battery: 91,
+    isAuctionLive: true,
+    isProScout: true,
+    emoji: "\ud83d\udcf1",
+    timeAgo: "3h ago",
+  },
+  {
+    id: "d3",
+    title: "Google Pixel 8 Pro 128GB",
+    price: 52000,
+    location: "Ward 32, Patthergatti, Hyderabad",
+    emoji: "\ud83d\udcf1",
+    timeAgo: "5h ago",
+  },
+  {
+    id: "d5",
+    title: "MacBook Air M3 16GB/512GB",
+    price: 105000,
+    location: "Ward 32, Patthergatti, Hyderabad",
+    isVerified: true,
+    isFeatured: true,
+    isProScout: true,
+    emoji: "\ud83d\udcbb",
+    timeAgo: "6h ago",
+  },
+  {
+    id: "d6",
+    title: "iPhone 15 Pro 128GB",
+    price: 74500,
+    location: "Ward 32, Patthergatti, Hyderabad",
+    emoji: "\ud83d\udcf1",
+    timeAgo: "8h ago",
+  },
+  {
+    id: "d7",
+    title: "Apple Watch Ultra 2",
+    price: 78000,
+    location: "Ward 32, Patthergatti, Hyderabad",
+    isVerified: true,
+    battery: 98,
+    emoji: "\u231a",
+    timeAgo: "10h ago",
+  },
+  {
+    id: "d8",
+    title: 'MacBook Pro M2 14" 16GB',
+    price: 135000,
+    location: "Ward 32, Patthergatti, Hyderabad",
+    emoji: "\ud83d\udcbb",
+    timeAgo: "12h ago",
+  },
+  {
+    id: "d9",
+    title: "Samsung Galaxy S24 Ultra 256GB",
+    price: 88000,
+    location: "Ward 32, Patthergatti, Hyderabad",
+    isAuctionLive: true,
+    isProScout: true,
+    emoji: "\ud83d\udcf1",
+    timeAgo: "1d ago",
+  },
+  {
+    id: "d10",
+    title: "Apple Watch Ultra 2 (Used 3 months)",
+    price: 68000,
+    location: "Ward 32, Patthergatti, Hyderabad",
+    emoji: "\u231a",
+    timeAgo: "1d ago",
+  },
+  {
+    id: "d11",
+    title: "Google Pixel 8 256GB",
+    price: 44000,
+    location: "Ward 32, Patthergatti, Hyderabad",
+    isVerified: true,
+    battery: 96,
+    emoji: "\ud83d\udcf1",
+    timeAgo: "2d ago",
+  },
+];
+
+function DemoListingCard({ item, index }: { item: DemoItem; index: number }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      className="flex gap-3 px-4 py-3 bg-white hover:bg-gray-50 transition-colors w-full text-left"
+      onClick={() => navigate({ to: "/" })}
+      data-ocid={`home.item.${index + 1}`}
+    >
+      <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shrink-0 relative">
+        <span className="text-3xl">{item.emoji}</span>
+        {item.isFeatured && (
+          <span className="absolute -top-1 -left-1 bg-amber-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full">
+            Featured
+          </span>
+        )}
+        {item.isAuctionLive && (
+          <span className="absolute -top-1 -left-1 bg-red-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
+            🔴 Live
+          </span>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2">
+          {item.title}
+        </p>
+        <p className="text-base font-bold text-gray-900 mt-0.5">
+          ₹{item.price.toLocaleString("en-IN")}
+        </p>
+        {item.isVerified && (
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className="text-[10px] font-bold bg-yellow-100 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded-full">
+              ✨ Verified{item.battery ? ` • Battery ${item.battery}%` : ""}
+            </span>
+          </div>
+        )}
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[11px] text-gray-400">{item.location}</span>
+          {item.isProScout && (
+            <span className="text-[10px] font-bold bg-gray-800 text-gray-200 px-1.5 py-0.5 rounded-full">
+              🛡 Pro Scout
+            </span>
+          )}
+          <span className="text-[11px] text-gray-400 ml-auto">
+            {item.timeAgo}
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ── Sell Instant Banner ───────────────────────────────────────────────────────
 function SellInstantBanner() {
   return (
     <motion.div
@@ -118,10 +467,9 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState(searchParams.q ?? "");
   const [inputValue, setInputValue] = useState(searchParams.q ?? "");
   const [geoFilter] = useState<GeoFilter | null>(null);
-  const [selectedCity, setSelectedCity] = useState<string>(() => {
-    return localStorage.getItem("userLocation") ?? "";
-  });
-
+  const [selectedCity, setSelectedCity] = useState<string>(
+    () => localStorage.getItem("userLocation") ?? "",
+  );
   const [brandFilter, setBrandFilter] = useState<string | null>(null);
   const [conditionFilter, setConditionFilter] = useState<string | null>(null);
   const [budgetFilter, setBudgetFilter] = useState<{
@@ -131,7 +479,6 @@ export default function HomePage() {
   const [sortOrder, setSortOrder] = useState<
     "newest" | "price_asc" | "price_desc"
   >("newest");
-
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -140,9 +487,8 @@ export default function HomePage() {
   }, [searchParams.q]);
 
   useEffect(() => {
-    const handler = () => {
+    const handler = () =>
       setSelectedCity(localStorage.getItem("userLocation") ?? "");
-    };
     window.addEventListener("locationChanged", handler);
     return () => window.removeEventListener("locationChanged", handler);
   }, []);
@@ -159,81 +505,67 @@ export default function HomePage() {
   const filteredListings = useMemo(() => {
     if (!listings) return listings;
     let result = listings;
-    if (selectedCity) {
-      result = result.filter((listing) => {
-        if (!listing.location) return true;
-        return listing.location
-          .toLowerCase()
-          .includes(selectedCity.toLowerCase());
+    if (selectedCity)
+      result = result.filter(
+        (l) =>
+          !l.location ||
+          l.location.toLowerCase().includes(selectedCity.toLowerCase()),
+      );
+    if (geoFilter)
+      result = result.filter((l) => {
+        const p = parseGeoLocation(l.location);
+        return p
+          ? haversine(geoFilter.lat, geoFilter.lon, p.lat, p.lon) <=
+              geoFilter.radiusKm
+          : true;
       });
-    }
-    if (geoFilter) {
-      result = result.filter((listing) => {
-        const parsed = parseGeoLocation(listing.location);
-        if (parsed) {
-          return (
-            haversine(geoFilter.lat, geoFilter.lon, parsed.lat, parsed.lon) <=
-            geoFilter.radiusKm
-          );
-        }
-        return true;
-      });
-    }
     return result;
   }, [listings, geoFilter, selectedCity]);
 
   const allItems = useMemo(() => {
     let items: Listing[] = [...(filteredListings ?? [])];
-
     if (brandFilter) {
-      const bLower = brandFilter.toLowerCase();
+      const b = brandFilter.toLowerCase();
       items = items.filter(
-        (item) =>
-          item.title.toLowerCase().includes(bLower) ||
-          item.description.toLowerCase().includes(bLower),
+        (i) =>
+          i.title.toLowerCase().includes(b) ||
+          i.description.toLowerCase().includes(b),
       );
     }
-
-    if (conditionFilter) {
-      items = items.filter((item) => {
-        const cond = (item as any).condition;
-        if (!cond) return true;
-        return cond.toLowerCase().includes(conditionFilter.toLowerCase());
+    if (conditionFilter)
+      items = items.filter((i) => {
+        const c = (i as any).condition;
+        return !c || c.toLowerCase().includes(conditionFilter.toLowerCase());
       });
-    }
-
-    if (budgetFilter) {
-      items = items.filter((item) => {
-        const price = Number(String(item.price).replace(/[^0-9.]/g, ""));
-        if (Number.isNaN(price)) return true;
+    if (budgetFilter)
+      items = items.filter((i) => {
+        const p = Number(String(i.price).replace(/[^0-9.]/g, ""));
         return (
-          price >= budgetFilter.min &&
-          price <=
-            (budgetFilter.max === Number.POSITIVE_INFINITY
-              ? Number.MAX_SAFE_INTEGER
-              : budgetFilter.max)
+          Number.isNaN(p) ||
+          (p >= budgetFilter.min &&
+            p <=
+              (budgetFilter.max === Number.POSITIVE_INFINITY
+                ? Number.MAX_SAFE_INTEGER
+                : budgetFilter.max))
         );
       });
-    }
-
-    if (sortOrder === "price_asc") {
-      items = [...items].sort((a, b) => {
-        const pa = Number(String(a.price).replace(/[^0-9.]/g, ""));
-        const pb = Number(String(b.price).replace(/[^0-9.]/g, ""));
-        return pa - pb;
-      });
-    } else if (sortOrder === "price_desc") {
-      items = [...items].sort((a, b) => {
-        const pa = Number(String(a.price).replace(/[^0-9.]/g, ""));
-        const pb = Number(String(b.price).replace(/[^0-9.]/g, ""));
-        return pb - pa;
-      });
-    }
-
+    if (sortOrder === "price_asc")
+      items = [...items].sort(
+        (a, b) =>
+          Number(String(a.price).replace(/[^0-9.]/g, "")) -
+          Number(String(b.price).replace(/[^0-9.]/g, "")),
+      );
+    else if (sortOrder === "price_desc")
+      items = [...items].sort(
+        (a, b) =>
+          Number(String(b.price).replace(/[^0-9.]/g, "")) -
+          Number(String(a.price).replace(/[^0-9.]/g, "")),
+      );
     return items;
   }, [filteredListings, brandFilter, conditionFilter, budgetFilter, sortOrder]);
 
   const hasItems = !isLoading && allItems.length > 0;
+  const showDemo = !isLoading && allItems.length < 3;
 
   if (skeletonVisible) {
     return (
@@ -242,7 +574,7 @@ export default function HomePage() {
           <div className="h-10 bg-gray-200 rounded-xl animate-pulse" />
           <div className="h-8 bg-gray-100 rounded-lg animate-pulse" />
           <div className="flex gap-2 overflow-hidden pb-1">
-            {["phones", "macbooks", "watches", "earphones", "all"].map((id) => (
+            {["a", "b", "c", "d", "e"].map((id) => (
               <div
                 key={id}
                 className="flex flex-col items-center gap-1 shrink-0"
@@ -258,7 +590,7 @@ export default function HomePage() {
           <div className="h-32 bg-white rounded-2xl border border-gray-100 animate-pulse mb-3" />
         </div>
         <div className="bg-white">
-          {["card-a", "card-b", "card-c"].map((id) => (
+          {["x", "y", "z"].map((id) => (
             <div
               key={id}
               className="flex gap-3 px-4 py-3 border-b border-gray-100"
@@ -278,9 +610,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
-      {/* Top section — white bg, sticky */}
+      {/* Top section — sticky */}
       <div className="bg-white sticky top-0 z-40">
-        {/* Search Bar */}
         <div className="px-4 pt-3 pb-2">
           <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-3 h-10">
             <Search className="h-4 w-4 text-gray-400 shrink-0" />
@@ -310,8 +641,6 @@ export default function HomePage() {
             )}
           </div>
         </div>
-
-        {/* Filters Bar — always visible below search */}
         <div className="bg-white border-b border-gray-100 px-0">
           <FiltersBar
             onBrandChange={setBrandFilter}
@@ -324,8 +653,6 @@ export default function HomePage() {
             selectedSort={sortOrder}
           />
         </div>
-
-        {/* Category Tabs */}
         {!searchQuery && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -340,17 +667,11 @@ export default function HomePage() {
                 type="button"
                 onClick={() => setCategory(cat.id as CategoryId)}
                 data-ocid={`home.${cat.id}.tab`}
-                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl border transition-all duration-200 shrink-0 min-w-[64px] ${
-                  category === cat.id
-                    ? "bg-blue-50 border-blue-200 text-blue-700"
-                    : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
-                }`}
+                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl border transition-all duration-200 shrink-0 min-w-[64px] ${category === cat.id ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"}`}
               >
                 {(cat as any).useGridIcon ? (
                   <GridIcon
-                    className={`w-5 h-5 ${
-                      category === cat.id ? "text-blue-600" : "text-gray-400"
-                    }`}
+                    className={`w-5 h-5 ${category === cat.id ? "text-blue-600" : "text-gray-400"}`}
                   />
                 ) : (
                   <span className="text-lg">{(cat as any).emoji}</span>
@@ -362,15 +683,18 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Sell Instant Banner — below category scroll */}
+      {/* Sell Instant Banner */}
       <div className="px-4 pb-2 bg-white">
         <SellInstantBanner />
       </div>
 
-      {/* Promo Banner Carousel — edge-to-edge */}
+      {/* Promo Banner Carousel */}
       <div className="bg-white pb-3">
         <PromoBannerCarousel />
       </div>
+
+      {/* Tech Hub Slider */}
+      <TechHubSlider />
 
       {/* Location filter badge */}
       {selectedCity && (
@@ -390,7 +714,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Search results header */}
       {searchQuery && (
         <div className="px-4 py-2 flex items-center justify-between bg-white border-b border-gray-100">
           <p className="text-sm text-gray-500">
@@ -413,7 +736,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Post Ad CTA row */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-gray-100">
         <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
           {searchQuery
@@ -428,13 +750,11 @@ export default function HomePage() {
             className="gap-1.5 font-semibold bg-blue-600 text-white hover:bg-blue-700 rounded-lg h-7 text-xs px-3"
             data-ocid="home.primary_button"
           >
-            <PlusCircle className="h-3.5 w-3.5" />
-            Post Free Ad
+            <PlusCircle className="h-3.5 w-3.5" /> Post Free Ad
           </Button>
         </Link>
       </div>
 
-      {/* Error */}
       {isError && (
         <Alert
           variant="destructive"
@@ -448,10 +768,9 @@ export default function HomePage() {
         </Alert>
       )}
 
-      {/* Listings — OLX vertical list, edge-to-edge */}
       {isLoading ? (
         <div className="bg-white" data-ocid="home.loading_state">
-          {[..."12345678"].map((c) => (
+          {["a", "b", "c", "d", "e", "f", "g", "h"].map((c) => (
             <div key={c} className="border-b border-gray-100 px-4 py-3">
               <ListingCardSkeleton />
             </div>
@@ -469,6 +788,23 @@ export default function HomePage() {
             </div>
           ))}
         </div>
+      ) : showDemo ? (
+        <div className="bg-white">
+          {DEMO_LISTINGS.slice(0, 3).map((item, i) => (
+            <div key={item.id} className="border-b border-gray-100">
+              <DemoListingCard item={item} index={i} />
+            </div>
+          ))}
+          {/* EV Station Card as 4th item */}
+          <div className="border-b border-gray-100 px-4 py-3">
+            <EVStationCard />
+          </div>
+          {DEMO_LISTINGS.slice(3).map((item, i) => (
+            <div key={item.id} className="border-b border-gray-100">
+              <DemoListingCard item={item} index={i + 4} />
+            </div>
+          ))}
+        </div>
       ) : (
         <motion.div
           initial={{ opacity: 0 }}
@@ -476,7 +812,9 @@ export default function HomePage() {
           className="flex flex-col items-center justify-center py-24 text-center bg-white mx-4 my-4 rounded-2xl"
           data-ocid="home.empty_state"
         >
-          <span className="text-6xl mb-4">{selectedCity ? "📍" : "📭"}</span>
+          <span className="text-6xl mb-4">
+            {selectedCity ? "\ud83d\udccd" : "\ud83d\udcad"}
+          </span>
           <h3 className="font-bold text-lg mb-1 text-gray-800">
             {selectedCity ? "No listings nearby" : "No listings yet"}
           </h3>
@@ -492,8 +830,7 @@ export default function HomePage() {
               className="gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700"
               data-ocid="home.secondary_button"
             >
-              <PlusCircle className="h-4 w-4" />
-              Post First Ad
+              <PlusCircle className="h-4 w-4" /> Post First Ad
             </Button>
           </Link>
         </motion.div>

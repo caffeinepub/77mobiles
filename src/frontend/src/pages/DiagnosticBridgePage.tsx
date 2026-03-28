@@ -41,6 +41,68 @@ const BRANDS = ["Apple", "Samsung", "OnePlus", "Xiaomi", "Google"];
 const MODELS = ["iPhone 15 Pro", "Galaxy S23", "OnePlus 12", "Redmi Note 13"];
 const STORAGES = ["64GB", "128GB", "256GB", "512GB"];
 const CONDITIONS = ["Like New", "Good", "Fair", "For Parts"];
+interface DiagnosticReport {
+  id: string;
+  timestamp: string;
+  device_identity: {
+    brand: string;
+    model: string;
+    imei: string;
+    storage: string;
+    os_version: string;
+  };
+  hardware_results: {
+    Battery: { value: number; pass: boolean; label: string };
+    Display: { value: number; pass: boolean; label: string };
+    Biometrics: { value: string; pass: boolean; label: string };
+    Buttons: { value: string; pass: boolean; label: string };
+    Cameras: { value: string; pass: boolean; label: string };
+  };
+  overall_health_score: number;
+}
+
+function buildDiagnosticReport(): DiagnosticReport {
+  const batteryVal = 91;
+  const displayVal = 100;
+  const report: DiagnosticReport = {
+    id: `report_${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    device_identity: {
+      brand: "Samsung",
+      model: "Galaxy S23 Ultra",
+      imei: "352****234567",
+      storage: "256GB",
+      os_version: "Android 14",
+    },
+    hardware_results: {
+      Battery: {
+        value: batteryVal,
+        pass: batteryVal >= 80,
+        label: "Battery Health",
+      },
+      Display: {
+        value: displayVal,
+        pass: displayVal === 100,
+        label: "Display Coverage",
+      },
+      Biometrics: {
+        value: "OS_TOKEN_VERIFIED",
+        pass: true,
+        label: "Biometrics",
+      },
+      Buttons: {
+        value: "All Responsive",
+        pass: true,
+        label: "Physical Buttons",
+      },
+      Cameras: { value: "Front + Rear", pass: true, label: "Cameras" },
+    },
+    overall_health_score: Math.round(
+      (batteryVal + displayVal + 95 + 98 + 97) / 5,
+    ),
+  };
+  return report;
+}
 
 export default function DiagnosticBridgePage() {
   const navigate = useNavigate();
@@ -420,7 +482,14 @@ export default function DiagnosticBridgePage() {
                 </div>
                 <Button
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl"
-                  onClick={() => setStep(3)}
+                  onClick={() => {
+                    const report = buildDiagnosticReport();
+                    localStorage.setItem(
+                      "77m_diagnostic_report",
+                      JSON.stringify(report),
+                    );
+                    navigate({ to: "/diagnostic-success" });
+                  }}
                   data-ocid="diagnostic.primary_button"
                 >
                   View Full Report <ChevronRight className="h-4 w-4 ml-1" />

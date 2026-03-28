@@ -33,6 +33,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
+  Award,
   CheckCircle2,
   ChevronRight,
   Crown,
@@ -49,6 +50,7 @@ import {
   ShoppingBag,
   Star,
   Trash2,
+  Trophy,
   Unlink,
   User,
   UserPlus,
@@ -124,6 +126,7 @@ function AccountCard({
 }
 
 function MyAccountSection({ onLogout }: { onLogout: () => void }) {
+  const navigate = useNavigate();
   const [showEliteModal, setShowEliteModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
 
@@ -188,6 +191,24 @@ function MyAccountSection({ onLogout }: { onLogout: () => void }) {
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">
             General
           </p>
+          <AccountCard
+            icon={<Award className="h-5 w-5 text-green-600" />}
+            iconBg="bg-green-100"
+            title="77 Scout Rewards"
+            subtitle="Earn points by reporting EV stations"
+            badge="New"
+            badgeColor="bg-green-100 text-green-700"
+            onClick={() => navigate({ to: "/rewards" })}
+            data-ocid="profile.rewards.button"
+          />
+          <AccountCard
+            icon={<Trophy className="h-5 w-5 text-yellow-600" />}
+            iconBg="bg-yellow-100"
+            title="EV Scout Leaderboard"
+            subtitle="See top EV scouts this month"
+            onClick={() => navigate({ to: "/leaderboard" })}
+            data-ocid="profile.leaderboard.button"
+          />
           <AccountCard
             icon={<Settings className="h-5 w-5 text-gray-600" />}
             iconBg="bg-gray-100"

@@ -1,3 +1,5 @@
+declare const google: any;
+
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -5,14 +7,21 @@ import {
   BatteryCharging,
   Bell,
   Crosshair,
+  ImageOff,
   MapPin,
   Navigation,
   Search,
+  Star,
   X,
   Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
+const GOOGLE_MAPS_API_KEY = "AIzaSyDQ1yDyEY7E4L3qGsy-rCIV0222DZDAA4M";
+const CACHE_KEY = "77ev_stations";
+const CACHE_TS_KEY = "77ev_cache_ts";
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const HYDERABAD_LOCALITIES = [
   "Banjara Hills",
@@ -70,17 +79,23 @@ interface Station {
   lat: number;
   lng: number;
   chargerType: "fast" | "slow";
+  availableChargers: number;
+  totalChargers: number;
+  rating: number;
 }
 
 const EV_STATIONS: Station[] = [
   {
     id: "1",
-    name: "Tata Power EV Station — Banjara Hills",
-    address: "Road No. 12, Banjara Hills, Hyderabad",
+    name: "Tata Power EZ Charge — Somajiguda",
+    address: "Somajiguda, Hyderabad",
     connectors: ["Type 2", "CCS"],
-    lat: 17.415,
-    lng: 78.448,
+    lat: 17.428,
+    lng: 78.455,
     chargerType: "fast",
+    availableChargers: 3,
+    totalChargers: 5,
+    rating: 4.2,
   },
   {
     id: "2",
@@ -90,6 +105,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.446,
     lng: 78.38,
     chargerType: "fast",
+    availableChargers: 4,
+    totalChargers: 6,
+    rating: 4.5,
   },
   {
     id: "3",
@@ -99,6 +117,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.431,
     lng: 78.41,
     chargerType: "fast",
+    availableChargers: 0,
+    totalChargers: 4,
+    rating: 3.9,
   },
   {
     id: "4",
@@ -108,6 +129,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.445,
     lng: 78.35,
     chargerType: "fast",
+    availableChargers: 2,
+    totalChargers: 4,
+    rating: 4.1,
   },
   {
     id: "5",
@@ -117,6 +141,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.452,
     lng: 78.39,
     chargerType: "slow",
+    availableChargers: 0,
+    totalChargers: 3,
+    rating: 4.0,
   },
   {
     id: "6",
@@ -126,6 +153,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.438,
     lng: 78.498,
     chargerType: "fast",
+    availableChargers: 1,
+    totalChargers: 4,
+    rating: 3.8,
   },
   {
     id: "7",
@@ -135,6 +165,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.46,
     lng: 78.365,
     chargerType: "slow",
+    availableChargers: 0,
+    totalChargers: 2,
+    rating: 4.2,
   },
   {
     id: "8",
@@ -144,6 +177,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.485,
     lng: 78.405,
     chargerType: "fast",
+    availableChargers: 3,
+    totalChargers: 5,
+    rating: 4.3,
   },
   {
     id: "9",
@@ -153,6 +189,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.399,
     lng: 78.559,
     chargerType: "fast",
+    availableChargers: 0,
+    totalChargers: 3,
+    rating: 3.7,
   },
   {
     id: "10",
@@ -162,6 +201,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.396,
     lng: 78.438,
     chargerType: "slow",
+    availableChargers: 2,
+    totalChargers: 3,
+    rating: 4.0,
   },
   {
     id: "11",
@@ -171,6 +213,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.437,
     lng: 78.449,
     chargerType: "fast",
+    availableChargers: 0,
+    totalChargers: 4,
+    rating: 4.1,
   },
   {
     id: "12",
@@ -180,6 +225,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.349,
     lng: 78.552,
     chargerType: "fast",
+    availableChargers: 0,
+    totalChargers: 4,
+    rating: 3.9,
   },
   {
     id: "13",
@@ -189,6 +237,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.49,
     lng: 78.39,
     chargerType: "slow",
+    availableChargers: 0,
+    totalChargers: 2,
+    rating: 3.8,
   },
   {
     id: "14",
@@ -198,6 +249,9 @@ const EV_STATIONS: Station[] = [
     lat: 17.495,
     lng: 78.356,
     chargerType: "slow",
+    availableChargers: 0,
+    totalChargers: 2,
+    rating: 4.0,
   },
 ];
 
@@ -219,9 +273,54 @@ function haversineDistance(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const DEFAULT_CENTER = { lat: 17.4, lng: 78.43 };
+const launchNavigation = (lat: number, lng: number, name: string) => {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const url = isIOS
+    ? `http://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`
+    : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=${encodeURIComponent(name)}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+};
 
+const DEFAULT_CENTER = { lat: 17.385, lng: 78.4867 };
 type ChargerFilter = "all" | "fast" | "slow";
+
+function loadGoogleMapsScript(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof google !== "undefined" && google.maps) {
+      resolve();
+      return;
+    }
+    if (document.querySelector("script[data-gm-script]")) {
+      // already loading — poll
+      const poll = setInterval(() => {
+        if (typeof google !== "undefined" && google.maps) {
+          clearInterval(poll);
+          resolve();
+        }
+      }, 100);
+      return;
+    }
+    const script = document.createElement("script");
+    script.dataset.gmScript = "1";
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+    script.async = true;
+    script.onload = () => resolve();
+    document.head.appendChild(script);
+  });
+}
+
+function getAmenityIcons(connectors: string[]): string[] {
+  const icons: string[] = ["🅿️"]; // always parking
+  if (connectors.some((c) => c === "CCS")) icons.push("☕");
+  if (connectors.some((c) => c === "CHAdeMO")) icons.push("📶");
+  return icons;
+}
+
+function getAvailabilityText(station: Station): string {
+  const isOpen = OPEN_NOW_IDS.has(station.id);
+  if (!isOpen) return "Closed";
+  return `${station.availableChargers} of ${station.totalChargers} chargers free`;
+}
 
 export default function EVChargingPage() {
   const navigate = useNavigate();
@@ -237,8 +336,108 @@ export default function EVChargingPage() {
     useState<Set<string> | null>(null);
   const [showSearchArea, setShowSearchArea] = useState(false);
   const [notifyRequested, setNotifyRequested] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mapKey = useRef(0);
+  const mapRef = useRef<any>(null);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const markersRef = useRef<any[]>([]);
+
+  // Load Google Maps script
+  useEffect(() => {
+    loadGoogleMapsScript().then(() => setMapReady(true));
+  }, []);
+
+  // Initialize map once ready
+  useEffect(() => {
+    if (!mapReady || !mapContainerRef.current) return;
+    const map = new google.maps.Map(mapContainerRef.current, {
+      center: DEFAULT_CENTER,
+      zoom: 12,
+      disableDefaultUI: false,
+      styles: [
+        { featureType: "poi", stylers: [{ visibility: "off" }] },
+        { featureType: "transit", stylers: [{ visibility: "off" }] },
+      ],
+    });
+    mapRef.current = map;
+
+    // On idle update center
+    map.addListener("idle", () => {
+      const c = map.getCenter();
+      if (c) setMapCenter({ lat: c.lat(), lng: c.lng() });
+    });
+  }, [mapReady]);
+
+  // Place markers when map ready or stations change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: visibleStations computed from state
+  useEffect(() => {
+    if (!mapRef.current) return;
+    // Clear old markers
+    for (const m of markersRef.current) m.setMap(null);
+    markersRef.current = [];
+
+    for (const station of visibleStations) {
+      const color = station.chargerType === "fast" ? "#16a34a" : "#2563eb";
+      const svgIcon = {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 10,
+        fillColor: color,
+        fillOpacity: 1,
+        strokeColor: "white",
+        strokeWeight: 2,
+      };
+      const marker = new google.maps.Marker({
+        position: { lat: station.lat, lng: station.lng },
+        map: mapRef.current,
+        title: station.name,
+        icon: svgIcon,
+      });
+      marker.addListener("click", () => setSelectedStation(station));
+      markersRef.current.push(marker);
+    }
+  }, [mapReady, radiusFilteredIds, chargerFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // GPS on mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          };
+          setMapCenter(coords);
+          if (mapRef.current) mapRef.current.setCenter(coords);
+          runRadiusSearch(coords, 5000);
+        },
+        () => {},
+        { timeout: 8000 },
+      );
+    }
+    // Load from cache
+    try {
+      const ts = Number(sessionStorage.getItem(CACHE_TS_KEY) ?? 0);
+      if (Date.now() - ts < CACHE_TTL_MS) {
+        const cached = sessionStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const ids: string[] = JSON.parse(cached);
+          setRadiusFilteredIds(new Set(ids));
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mapCenter triggers timer reset
+  useEffect(() => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => setShowSearchArea(true), 3000);
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [mapCenter]);
 
   const suggestions =
     searchText.length > 0
@@ -249,22 +448,8 @@ export default function EVChargingPage() {
 
   const handleBack = () => {
     setLeaving(true);
-    setTimeout(() => {
-      navigate({ to: "/" });
-    }, 280);
+    setTimeout(() => navigate({ to: "/" }), 280);
   };
-
-  // Trigger idle timer whenever mapCenter changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mapCenter triggers timer reset
-  useEffect(() => {
-    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    idleTimerRef.current = setTimeout(() => {
-      setShowSearchArea(true);
-    }, 3000);
-    return () => {
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    };
-  }, [mapCenter]);
 
   const runRadiusSearch = (
     center: { lat: number; lng: number },
@@ -286,16 +471,42 @@ export default function EVChargingPage() {
               haversineDistance(center.lat, center.lng, s.lat, s.lng) <= 15000,
           );
           setSearchRadius(15000);
-          if (found15.length === 0) {
-            setRadiusFilteredIds(new Set());
-          } else {
-            setRadiusFilteredIds(new Set(found15.map((s) => s.id)));
+          const ids = found15.length === 0 ? [] : found15.map((s) => s.id);
+          setRadiusFilteredIds(new Set(ids));
+          // Cache static data
+          try {
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify(ids));
+            sessionStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+          } catch {
+            /* ignore */
+          }
+          // fitBounds for 15km
+          if (mapRef.current && found15.length > 0) {
+            const bounds = new google.maps.LatLngBounds();
+            for (const s of found15) bounds.extend({ lat: s.lat, lng: s.lng });
+            mapRef.current.fitBounds(bounds, 50);
           }
         }, 1000);
       } else {
         setRadiusFilteredIds(new Set(found.map((s) => s.id)));
+        // fitBounds
+        if (mapRef.current && found.length > 0) {
+          const bounds = new google.maps.LatLngBounds();
+          for (const s of found) bounds.extend({ lat: s.lat, lng: s.lng });
+          mapRef.current.fitBounds(bounds, 50);
+        }
+        // Cache
+        try {
+          sessionStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify(found.map((s) => s.id)),
+          );
+          sessionStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+        } catch {
+          /* ignore */
+        }
       }
-    }, 1500);
+    }, 1000);
   };
 
   const handleSelectSuggestion = (locality: string) => {
@@ -305,15 +516,18 @@ export default function EVChargingPage() {
     if (coords) {
       setMapCenter(coords);
       setSearchRadius(5000);
+      if (mapRef.current) {
+        mapRef.current.panTo(coords);
+        mapRef.current.setZoom(15);
+      }
       runRadiusSearch(coords, 5000);
     }
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && suggestions.length > 0) {
+    if (e.key === "Enter" && suggestions.length > 0)
       handleSelectSuggestion(suggestions[0]);
-    } else if (e.key === "Enter" && searchText.trim()) {
-      // Try LOCALITY_COORDS direct match
+    else if (e.key === "Enter" && searchText.trim()) {
       const match = HYDERABAD_LOCALITIES.find(
         (l) => l.toLowerCase() === searchText.trim().toLowerCase(),
       );
@@ -327,6 +541,10 @@ export default function EVChargingPage() {
     setMapCenter(DEFAULT_CENTER);
     setRadiusFilteredIds(null);
     setSearchRadius(5000);
+    if (mapRef.current) {
+      mapRef.current.setCenter(DEFAULT_CENTER);
+      mapRef.current.setZoom(12);
+    }
   };
 
   const handleSearchArea = () => {
@@ -334,33 +552,45 @@ export default function EVChargingPage() {
     runRadiusSearch(mapCenter, 5000);
   };
 
+  const handleLocateMe = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          };
+          setMapCenter(coords);
+          if (mapRef.current) {
+            mapRef.current.panTo(coords);
+            mapRef.current.setZoom(14);
+          }
+          setSearchRadius(5000);
+          runRadiusSearch(coords, 5000);
+        },
+        () => toast.error("Could not get your location"),
+      );
+    }
+  };
+
+  const handleStationClick = (station: Station) => {
+    setSelectedStation(station);
+    if (mapRef.current) {
+      mapRef.current.panTo({ lat: station.lat, lng: station.lng });
+      mapRef.current.setZoom(15);
+    }
+  };
+
   // Compute visible stations
   let visibleStations = EV_STATIONS;
-  if (radiusFilteredIds !== null) {
+  if (radiusFilteredIds !== null)
     visibleStations = visibleStations.filter((s) =>
       radiusFilteredIds.has(s.id),
     );
-  }
-  if (chargerFilter !== "all") {
+  if (chargerFilter !== "all")
     visibleStations = visibleStations.filter(
       (s) => s.chargerType === chargerFilter,
     );
-  }
-
-  // Compute fitBounds
-  let bbox: string;
-  if (visibleStations.length > 0 && radiusFilteredIds !== null) {
-    const lats = visibleStations.map((s) => s.lat);
-    const lngs = visibleStations.map((s) => s.lng);
-    const minLat = Math.min(...lats) - 0.02;
-    const maxLat = Math.max(...lats) + 0.02;
-    const minLng = Math.min(...lngs) - 0.02;
-    const maxLng = Math.max(...lngs) + 0.02;
-    bbox = `${minLng},${minLat},${maxLng},${maxLat}`;
-  } else {
-    bbox = `${mapCenter.lng - 0.12},${mapCenter.lat - 0.08},${mapCenter.lng + 0.12},${mapCenter.lat + 0.08}`;
-  }
-  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${mapCenter.lat},${mapCenter.lng}`;
 
   const noStations = radiusFilteredIds !== null && radiusFilteredIds.size === 0;
   const radiusLabel = searchRadius === 15000 ? "15km" : "5km";
@@ -396,7 +626,7 @@ export default function EVChargingPage() {
         </span>
       </div>
 
-      {/* Search bar with autocomplete */}
+      {/* Search bar */}
       <div
         className="px-4 py-2 bg-white border-b border-gray-100 relative"
         style={{ zIndex: 20 }}
@@ -412,7 +642,7 @@ export default function EVChargingPage() {
             }}
             onFocus={() => setShowSuggestions(true)}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Search areas in Hyderabad (e.g. Ameerpet)..."
+            placeholder="Search areas in Hyderabad..."
             className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none"
             data-ocid="ev.search_input"
           />
@@ -426,8 +656,6 @@ export default function EVChargingPage() {
             </button>
           )}
         </div>
-
-        {/* Suggestions dropdown */}
         {showSuggestions && suggestions.length > 0 && (
           <div
             className="absolute left-4 right-4 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden"
@@ -480,21 +708,21 @@ export default function EVChargingPage() {
         )}
       </div>
 
-      {/* Map */}
+      {/* Map container */}
       <div className="flex-1 relative overflow-hidden">
-        <iframe
-          key={mapKey.current}
-          title="EV Charging Map"
-          width="100%"
-          height="100%"
-          src={mapUrl}
-          className="border-0 w-full h-full"
-          loading="lazy"
-        />
+        <div ref={mapContainerRef} className="w-full h-full" />
+
+        {/* Map not loaded yet */}
+        {!mapReady && (
+          <div className="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center gap-3">
+            <div className="h-10 w-10 rounded-full border-4 border-green-500 border-t-transparent animate-spin" />
+            <p className="text-sm font-semibold text-gray-600">Loading map…</p>
+          </div>
+        )}
 
         {/* Searching overlay */}
         {isSearching && (
-          <div className="absolute inset-0 bg-white/70 flex flex-col items-center justify-center gap-3 z-10">
+          <div className="absolute inset-0 bg-white/60 flex flex-col items-center justify-center gap-3 z-10">
             <div className="h-10 w-10 rounded-full border-4 border-green-500 border-t-transparent animate-spin" />
             <p className="text-sm font-semibold text-green-700">
               Fetching stations…
@@ -502,7 +730,7 @@ export default function EVChargingPage() {
           </div>
         )}
 
-        {/* Search this area button */}
+        {/* Search this area */}
         {showSearchArea && !isSearching && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10">
             <button
@@ -516,25 +744,10 @@ export default function EVChargingPage() {
           </div>
         )}
 
-        {/* Floating Locate Me */}
+        {/* Locate Me FAB */}
         <button
           type="button"
-          onClick={() => {
-            if (navigator.geolocation) {
-              navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                  const coords = {
-                    lat: pos.coords.latitude,
-                    lng: pos.coords.longitude,
-                  };
-                  setMapCenter(coords);
-                  setSearchRadius(5000);
-                  runRadiusSearch(coords, 5000);
-                },
-                () => {},
-              );
-            }
-          }}
+          onClick={handleLocateMe}
           className="absolute bottom-[48%] right-4 h-12 w-12 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors z-10"
           title="Locate me"
           data-ocid="ev.button"
@@ -542,7 +755,7 @@ export default function EVChargingPage() {
           <Crosshair className="h-5 w-5 text-blue-600" />
         </button>
 
-        {/* Station list overlay */}
+        {/* Station list bottom sheet */}
         <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl border-t border-gray-200 max-h-[45%] overflow-y-auto">
           <div className="flex items-center justify-center pt-2 pb-1">
             <div className="w-10 h-1 rounded-full bg-gray-300" />
@@ -588,20 +801,20 @@ export default function EVChargingPage() {
                 );
                 const distKm = (dist / 1000).toFixed(1);
                 const isOpen = OPEN_NOW_IDS.has(station.id);
+                const amenities = getAmenityIcons(station.connectors);
+                const availText = getAvailabilityText(station);
+                const isFirst = i === 0;
+
                 return (
                   <button
                     key={station.id}
                     type="button"
-                    onClick={() => setSelectedStation(station)}
+                    onClick={() => handleStationClick(station)}
                     className="w-full text-left px-4 py-3 hover:bg-gray-50 flex gap-3 items-start transition-colors"
                     data-ocid={`ev.item.${i + 1}`}
                   >
                     <div
-                      className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${
-                        station.chargerType === "fast"
-                          ? "bg-green-100"
-                          : "bg-blue-100"
-                      }`}
+                      className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${station.chargerType === "fast" ? "bg-green-100" : "bg-blue-100"}`}
                     >
                       {station.chargerType === "fast" ? (
                         <Zap className="h-4 w-4 text-green-700" />
@@ -610,38 +823,45 @@ export default function EVChargingPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="font-semibold text-sm text-gray-900 leading-tight truncate">
                           {station.name}
                         </p>
+                        {isFirst && (
+                          <span className="shrink-0 text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                            Sponsored
+                          </span>
+                        )}
                         <span
-                          className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 shrink-0 ${
-                            isOpen
-                              ? "bg-green-100 text-green-700"
-                              : "bg-gray-100 text-gray-500"
-                          }`}
+                          className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 shrink-0 flex items-center gap-0.5 ${isOpen ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
                         >
-                          {isOpen ? "Open" : "Closed"}
+                          {isOpen && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                          )}
+                          {availText}
                         </span>
                       </div>
                       <p className="text-xs text-gray-400 truncate mt-0.5">
                         {station.address}
                       </p>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="text-[10px] text-gray-500">
                           {distKm} km away
                         </span>
-                        <div className="flex gap-1 flex-wrap">
+                        <div className="flex gap-1">
                           {station.connectors.map((c) => (
                             <span
                               key={c}
-                              className={`text-[10px] font-medium rounded px-1.5 py-0.5 ${
-                                c === "CCS" || c === "CHAdeMO"
-                                  ? "bg-green-50 text-green-700 border border-green-200"
-                                  : "bg-blue-50 text-blue-700 border border-blue-200"
-                              }`}
+                              className={`text-[10px] font-medium rounded px-1.5 py-0.5 ${c === "CCS" || c === "CHAdeMO" ? "bg-green-50 text-green-700 border border-green-200" : "bg-blue-50 text-blue-700 border border-blue-200"}`}
                             >
                               {c === "CCS" || c === "CHAdeMO" ? `⚡ ${c}` : c}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex gap-1">
+                          {amenities.map((icon) => (
+                            <span key={icon} className="text-xs" title={icon}>
+                              {icon}
                             </span>
                           ))}
                         </div>
@@ -671,11 +891,7 @@ export default function EVChargingPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div
-                  className={`h-9 w-9 rounded-full flex items-center justify-center ${
-                    selectedStation.chargerType === "fast"
-                      ? "bg-green-100"
-                      : "bg-blue-100"
-                  }`}
+                  className={`h-9 w-9 rounded-full flex items-center justify-center ${selectedStation.chargerType === "fast" ? "bg-green-100" : "bg-blue-100"}`}
                 >
                   {selectedStation.chargerType === "fast" ? (
                     <Zap className="h-5 w-5 text-green-700" />
@@ -692,14 +908,10 @@ export default function EVChargingPage() {
                       {selectedStation.address}
                     </p>
                     <span
-                      className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${
-                        OPEN_NOW_IDS.has(selectedStation.id)
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
+                      className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${OPEN_NOW_IDS.has(selectedStation.id) ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
                     >
                       {OPEN_NOW_IDS.has(selectedStation.id)
-                        ? "Open Now"
+                        ? `• ${getAvailabilityText(selectedStation)}`
                         : "Closed"}
                     </span>
                   </div>
@@ -720,11 +932,7 @@ export default function EVChargingPage() {
                 {selectedStation.connectors.map((c) => (
                   <span
                     key={c}
-                    className={`text-xs font-semibold rounded-full px-3 py-1 ${
-                      c === "CCS" || c === "CHAdeMO"
-                        ? "bg-green-50 text-green-700 border border-green-200"
-                        : "bg-blue-50 text-blue-700 border border-blue-200"
-                    }`}
+                    className={`text-xs font-semibold rounded-full px-3 py-1 ${c === "CCS" || c === "CHAdeMO" ? "bg-green-50 text-green-700 border border-green-200" : "bg-blue-50 text-blue-700 border border-blue-200"}`}
                   >
                     {c === "CCS" || c === "CHAdeMO"
                       ? `⚡ Fast DC — ${c}`
@@ -745,13 +953,68 @@ export default function EVChargingPage() {
               </span>
             </div>
 
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    className={`h-4 w-4 ${s <= Math.round(selectedStation.rating) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}`}
+                  />
+                ))}
+              </div>
+              <span className="text-sm font-bold text-gray-700">
+                {selectedStation.rating}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {["24/7 Open", "Parking", "Restrooms", "Cafe Nearby"].map((a) => (
+                <span
+                  key={a}
+                  className="text-xs bg-gray-100 text-gray-600 rounded-full px-3 py-1 font-medium"
+                >
+                  {a}
+                </span>
+              ))}
+            </div>
+
+            {/* Photo Gallery */}
+            <div className="mb-4">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                Photos
+              </p>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {[
+                  {
+                    bg: "bg-gradient-to-br from-green-100 to-green-200",
+                    id: "pg",
+                  },
+                  {
+                    bg: "bg-gradient-to-br from-blue-100 to-blue-200",
+                    id: "pb",
+                  },
+                  {
+                    bg: "bg-gradient-to-br from-teal-100 to-teal-200",
+                    id: "pt",
+                  },
+                ].map(({ bg, id }) => (
+                  <div
+                    key={id}
+                    className={`shrink-0 w-[120px] h-[90px] rounded-xl ${bg} flex items-center justify-center`}
+                  >
+                    <ImageOff className="h-6 w-6 text-gray-400" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <Button
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl gap-2"
               onClick={() =>
-                window.open(
-                  `https://maps.google.com/?q=${selectedStation.lat},${selectedStation.lng}`,
-                  "_blank",
-                  "noopener,noreferrer",
+                launchNavigation(
+                  selectedStation.lat,
+                  selectedStation.lng,
+                  selectedStation.name,
                 )
               }
               data-ocid="ev.primary_button"
